@@ -25,6 +25,13 @@ El Pi va a estar expuesto a internet (control remoto desde otro PC). Las amenaza
 - **Firewall**: `ufw` solo permite 443/tcp entrante (y el puerto WireGuard si lo usas); todo lo demás denegado por defecto. Ver `docs/RPI_SETUP.md`.
 - **Logging de auditoría** (`winston`) de logins fallidos y acciones de control (quién arrancó/paró el stream, cambió de escena), sin loguear contraseñas ni tokens.
 
+## Relay WHIP (chromeos-app + MediaMTX)
+
+- El puerto HTTP de WHIP (8889) nunca se expone directo: pasa por Caddy/TLS en 443 (`handle /whip/*`). Solo el puerto UDP de ICE (8189) va directo a internet, que es inherente a WebRTC.
+- `publishUser`/`publishPass` en `deploy/mediamtx/mediamtx.yml` deben cambiarse por valores aleatorios largos antes de desplegar; la copia real en la Pi (con la stream key de verdad) nunca se commitea, igual que `backend/.env`.
+- El puerto RTSP interno (8554) que usa el puente a RTMP solo escucha en `127.0.0.1` — no debe aparecer en ninguna regla de `ufw allow`.
+- Ver `docs/CHROMEOS_APP.md` para el despliegue completo.
+
 ## Checklist antes de exponer el Pi a internet
 
 - [ ] `backend/.env` tiene un `JWT_SECRET` y `JWT_REFRESH_SECRET` generados con `openssl rand -base64 48`, distintos entre sí.

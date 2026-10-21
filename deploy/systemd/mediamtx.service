@@ -1,0 +1,23 @@
+[Unit]
+Description=MediaMTX (relay WHIP -> RTMP para CDJ-PI IRL)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mediamtx
+ExecStart=/opt/mediamtx/mediamtx /opt/mediamtx/mediamtx.yml
+Restart=on-failure
+RestartSec=5
+
+User=mediamtx
+Group=mediamtx
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/mediamtx
+
+[Install]
+WantedBy=multi-user.target

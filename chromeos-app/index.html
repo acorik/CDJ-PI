@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#121212" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <title>CDJ-PI IRL</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="preview" width="1280" height="720"></canvas>
+
+      <form id="settings">
+        <h1>CDJ-PI IRL</h1>
+
+        <label>
+          WHIP endpoint
+          <input id="whipUrl" type="url" placeholder="https://tu-pi.example.com/whip/live" required />
+        </label>
+        <label>
+          Usuario (publish)
+          <input id="whipUser" type="text" autocomplete="off" />
+        </label>
+        <label>
+          Contraseña (publish)
+          <input id="whipPass" type="password" autocomplete="off" />
+        </label>
+        <label>
+          Canal de Twitch para chat (opcional)
+          <input id="chatChannel" type="text" placeholder="tu_canal" autocomplete="off" />
+        </label>
+        <label class="checkbox">
+          <input id="showCam" type="checkbox" checked />
+          Mostrar cámara (esquina)
+        </label>
+
+        <button id="startBtn" type="submit">Empezar</button>
+        <button id="stopBtn" type="button" disabled>Parar</button>
+      </form>
+
+      <div id="status">
+        <span id="statusDot" class="dot"></span>
+        <span id="statusText">parado</span>
+        <span id="bitrate"></span>
+      </div>
+    </div>
+
+    <video id="desktopVideo" autoplay muted playsinline hidden></video>
+    <video id="camVideo" autoplay muted playsinline hidden></video>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

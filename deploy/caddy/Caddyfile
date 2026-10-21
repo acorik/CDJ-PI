@@ -20,6 +20,14 @@ tu-dominio.example.com {
         reverse_proxy 127.0.0.1:4000
     }
 
+    # WHIP de MediaMTX (publica chromeos-app/). Solo el handshake HTTP pasa
+    # por aquí (y por tanto por TLS); los candidatos ICE van directos por
+    # UDP al puerto webrtcICEUDPMuxAddress configurado en mediamtx.yml, que
+    # debe abrirse aparte en el firewall (ver docs/CHROMEOS_APP.md).
+    handle /whip/* {
+        reverse_proxy 127.0.0.1:8889
+    }
+
     # Frontend estático (build de `npm run build` en frontend/dist)
     handle {
         root * /opt/cdj-pi/frontend/dist

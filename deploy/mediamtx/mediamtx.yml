@@ -1,0 +1,41 @@
+# Config de MediaMTX: recibe el stream del chromeos-app por WHIP y lo
+# reempaqueta sin recodificar (-c copy) hacia RTMP, hacia la plataforma
+# que quieras (Twitch, Kick, YouTube...). Corre bien en la misma Pi que
+# el backend de OBS — es un binario Go, consumo mínimo.
+#
+# Descarga: https://github.com/bluenviron/mediamtx/releases (binario para
+# linux_arm64 en el caso del Pi).
+
+logLevel: info
+
+# --- Ingesta WHIP (lo que publica chromeos-app) ---
+webrtc: yes
+webrtcAddress: :8889
+# Si expones esto directamente a internet (recomendado tras Caddy con TLS,
+# ver deploy/caddy/Caddyfile), deja aquí solo el puerto HTTP; los puertos
+# UDP de ICE (ver webrtcICEUDPMuxAddress) sí necesitan abrirse en el firewall.
+webrtcICEUDPMuxAddress: :8189
+
+# --- RTSP interno, solo para el puente runOnReady de abajo; nunca se expone ---
+rtsp: yes
+rtspAddress: 127.0.0.1:8554
+protocols: [tcp]
+
+paths:
+  live:
+    source: publisher
+
+    # Autenticación del publish: cambia estos valores antes de desplegar.
+    # MediaMTX los compara contra el Authorization (Basic) que envía
+    # chromeos-app/src/whip.ts.
+    publishUser: cambia_este_usuario
+    publishPass: cambia_esta_password_larga
+
+    # Puente WHIP -> RTMP de salida. Sustituye la URL por la de tu
+    # plataforma (incluye tu stream key, que es un secreto: no la metas
+    # en este archivo si lo vas a commitear en algún sitio — usa una copia
+    # local fuera del repo, igual que backend/.env).
+    runOnReady: >
+      ffmpeg -i rtsp://127.0.0.1:8554/live
+      -c copy -f flv rtmp://live.twitch.tv/app/TU_STREAM_KEY_AQUI
+    runOnReadyRestart: yes

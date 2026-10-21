@@ -22,6 +22,10 @@
 
 Un compositor de vídeo en tiempo real (decodificación de fuentes, mezcla de capas, encoding) es un proyecto de años, no algo razonable para un Pi en este alcance, y OBS ya está optimizado para ese hardware. El valor real de este proyecto es la capa de control remoto segura que OBS no trae de fábrica.
 
+## Segunda pieza: ChromeOS / Chromebooks de poca RAM
+
+`chromeos-app/` es una app separada, sin backend propio, pensada para equipos donde ni correr OBS tiene sentido (Crostini se come demasiada RAM en un Chromebook de 4GB). Usa WHIP (WebRTC) para delegar la codificación al hardware del propio portátil y publica contra **MediaMTX** (`deploy/mediamtx/`), que reempaqueta sin recodificar hacia RTMP. Ver `docs/CHROMEOS_APP.md` para el detalle completo; no comparte código ni estado con el `backend/`/`frontend/` de control de OBS — son dos flujos de streaming independientes que pueden usarse a la vez o por separado.
+
 ## Roadmap (no implementado todavía)
 
 - **Bonding de red para IRL** (failover automático WiFi/Ethernet/4G, estilo BELABOX/SRTLA): pensado como un módulo `backend/src/streaming/bonding.ts` que decida, según latencia/pérdida de cada interfaz, a qué conexión relay (SRT/RIST) reenvía OBS su salida. Requiere un relay externo (p.ej. `srtla_rec` en un VPS) — no se puede hacer solo con el Pi. Se documenta aquí como siguiente paso, no se reclama como implementado.
