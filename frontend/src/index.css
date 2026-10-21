@@ -1,0 +1,131 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #121212;
+  color: #eee;
+}
+
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 280px;
+}
+
+.login-form input {
+  padding: 0.5rem;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  color: #eee;
+}
+
+.login-form button,
+.dashboard button {
+  padding: 0.6rem;
+  border: none;
+  border-radius: 6px;
+  background: #2d6cdf;
+  color: #fff;
+  cursor: pointer;
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+.dashboard {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.dashboard header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scene-grid,
+.audio-mixer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.scene {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #1e1e1e;
+  color: #eee;
+  cursor: pointer;
+}
+
+.scene.active {
+  background: #2d6cdf;
+  border-color: #2d6cdf;
+}
+
+.audio-channel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #1e1e1e;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+}
+
+.stream-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.status.live {
+  color: #ff4d4d;
+  font-weight: bold;
+}
+
+.stream-controls .danger {
+  background: #c0392b;
+}
+
+.stats-panel {
+  display: flex;
+  gap: 1.5rem;
+  background: #1a1a1a;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.stats-panel .label {
+  display: block;
+  font-size: 0.75rem;
+  color: #999;
+}
+
+.ok {
+  color: #4caf50;
+}
+
+.bad {
+  color: #ff6b6b;
+}
+
+.muted {
+  color: #888;
+}

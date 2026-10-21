@@ -1,0 +1,35 @@
+[Unit]
+Description=CDJ-PI backend (control remoto de OBS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/cdj-pi/backend
+ExecStart=/usr/bin/node dist/index.js
+EnvironmentFile=/etc/cdj-pi/backend.env
+Restart=on-failure
+RestartSec=5
+
+# Usuario dedicado sin privilegios (crear con: useradd --system --no-create-home cdjpi)
+User=cdjpi
+Group=cdjpi
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/opt/cdj-pi/backend
+
+[Install]
+WantedBy=multi-user.target

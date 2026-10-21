@@ -1,0 +1,29 @@
+# Sustituye por tu dominio real (necesario para TLS automático vía Let's Encrypt).
+# Si solo accedes por VPN/LAN sin dominio público, cambia la primera línea por:
+#   :443 { tls internal }
+tu-dominio.example.com {
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "same-origin"
+    }
+
+    # API + WebSocket del backend
+    handle /auth/* /scenes/* /stream/* /audio/* /system/* /health {
+        reverse_proxy 127.0.0.1:4000
+    }
+
+    handle /ws* {
+        reverse_proxy 127.0.0.1:4000
+    }
+
+    # Frontend estático (build de `npm run build` en frontend/dist)
+    handle {
+        root * /opt/cdj-pi/frontend/dist
+        try_files {path} /index.html
+        file_server
+    }
+}

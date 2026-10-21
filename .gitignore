@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+
+# secrets — never commit real env files
+.env
+.env.*
+!.env.example
+!*/.env.example
+
+*.log
+npm-debug.log*
+.DS_Store
+.idea/
+.vscode/
+*.pem
+*.key
+*.crt
+!deploy/**/*.example

@@ -1,0 +1,18 @@
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    # En el Pi real, obs-websocket corre en el host, no en un contenedor:
+    # usa network_mode: host si OBS está en localhost del propio Pi.
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
