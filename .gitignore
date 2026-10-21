@@ -3,6 +3,7 @@ dist/
 build/
 coverage/
 .vite/
+*.tsbuildinfo
 
 # secrets — never commit real env files
 .env
