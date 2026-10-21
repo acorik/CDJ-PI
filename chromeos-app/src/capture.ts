@@ -1,90 +1,90 @@
-// Captura desktop + mic + cámara y las compone en un <canvas>.
-// Deliberadamente simple: nada de WebGL ni efectos, para no gastar CPU/RAM
-// en un Chromebook de 4GB. El propio encoder de WebRTC (hardware, vía
-// chrome://media-internals) es quien hace el trabajo pesado, no este código.
+// Composición "a lo pobre" pero que de verdad funciona: en vez de dibujar
+// cada fuente en un <canvas> (lo que rompe en cuanto una de ellas es un
+// iframe de otro dominio, como VDO.Ninja — el canvas queda "contaminado"
+// y no se puede leer ni exportar), colocamos cada fuente como una capa
+// normal del DOM (vídeo de escritorio a pantalla completa, cámara/iframe
+// como PiP, chat como texto) y al final auto-capturamos esta misma pestaña
+// con getDisplayMedia. El propio compositor del navegador hace el trabajo
+// de "mezclar" las capas — gratis, sin bucles de dibujo en JS.
 
-import type { ChatOverlay } from "./chat";
-
-export interface CompositorHandle {
-  outputStream: MediaStream;
-  stop: () => void;
-}
-
-const CANVAS_FPS = 30;
-const CAM_WIDTH_RATIO = 0.22;
-
-export async function startCompositor(
-  canvas: HTMLCanvasElement,
-  desktopVideo: HTMLVideoElement,
-  camVideo: HTMLVideoElement,
-  showCam: boolean,
-  chatOverlay: ChatOverlay | null,
-): Promise<CompositorHandle> {
-  const desktopStream = await navigator.mediaDevices.getDisplayMedia({
-    video: { frameRate: CANVAS_FPS },
+export async function startDesktopCapture(videoEl: HTMLVideoElement): Promise<MediaStream> {
+  const stream = await navigator.mediaDevices.getDisplayMedia({
+    video: { frameRate: 30 },
     audio: false,
   });
+  videoEl.srcObject = stream;
+  await videoEl.play();
+  return stream;
+}
 
-  const micCamStream = await navigator.mediaDevices.getUserMedia({
-    video: showCam ? { width: 320, height: 240, frameRate: 30 } : false,
+export async function startMic(): Promise<MediaStream> {
+  return navigator.mediaDevices.getUserMedia({
     audio: { echoCancellation: true, noiseSuppression: true },
+    video: false,
   });
+}
 
-  desktopVideo.srcObject = desktopStream;
-  await desktopVideo.play();
+export async function listVideoInputDevices(): Promise<MediaDeviceInfo[]> {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((d) => d.kind === "videoinput");
+}
 
-  if (showCam) {
-    camVideo.srcObject = micCamStream;
-    await camVideo.play();
-  }
+export async function startWebcam(videoEl: HTMLVideoElement, deviceId: string | undefined): Promise<MediaStream> {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: deviceId ? { deviceId: { exact: deviceId } } : true,
+    audio: false,
+  });
+  videoEl.srcObject = stream;
+  await videoEl.play();
+  return stream;
+}
 
-  const ctx = canvas.getContext("2d", { alpha: false })!;
-  let running = true;
+export function randomStreamId(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
 
-  function draw() {
-    if (!running) return;
-    const w = canvas.width;
-    const h = canvas.height;
+/** Devuelve el link que hay que abrir en el iPhone (Safari) para que mande su cámara. */
+export function buildVdoNinjaPushLink(streamId: string): string {
+  const params = new URLSearchParams({
+    push: streamId,
+    webcam: "",
+    novideoselect: "", // va directo a pedir permiso de cámara, sin selector previo
+    nopreview: "0",
+  });
+  return `https://vdo.ninja/?${params.toString()}`;
+}
 
-    if (desktopVideo.readyState >= 2) {
-      ctx.drawImage(desktopVideo, 0, 0, w, h);
-    }
+/** Monta el iframe receptor dentro de nuestra app para esa misma sala. */
+export function setupVdoNinjaViewer(iframeEl: HTMLIFrameElement, streamId: string): void {
+  const params = new URLSearchParams({
+    view: streamId,
+    cleanviewer: "", // sin controles/UI de VDO.Ninja superpuestos
+    transparent: "",
+    novideo: "0",
+    noaudio: "0", // el audio del iPhone, si lo quieres, entra por aquí; el mic local sigue siendo aparte
+  });
+  iframeEl.src = `https://vdo.ninja/?${params.toString()}`;
+  iframeEl.hidden = false;
+}
 
-    if (showCam && camVideo.readyState >= 2) {
-      const camW = w * CAM_WIDTH_RATIO;
-      const camH = (camW * camVideo.videoHeight) / camVideo.videoWidth;
-      const x = w - camW - 16;
-      const y = h - camH - 16;
-      ctx.save();
-      ctx.strokeStyle = "#2d6cdf";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x - 2, y - 2, camW + 4, camH + 4);
-      ctx.drawImage(camVideo, x, y, camW, camH);
-      ctx.restore();
-    }
-
-    chatOverlay?.drawOnto(ctx, w, h);
-
-    requestAnimationFrame(draw);
-  }
-  requestAnimationFrame(draw);
-
-  const canvasStream = canvas.captureStream(CANVAS_FPS);
-  const audioTrack = micCamStream.getAudioTracks()[0];
-  if (audioTrack) canvasStream.addTrack(audioTrack);
-
-  // si el usuario comparte audio del sistema al elegir la pestaña/ventana,
-  // también se mezcla (poco frecuente en IRL, pero gratis si está disponible)
-  const systemAudioTrack = desktopStream.getAudioTracks()[0];
-  if (systemAudioTrack) canvasStream.addTrack(systemAudioTrack);
-
-  return {
-    outputStream: canvasStream,
-    stop: () => {
-      running = false;
-      desktopStream.getTracks().forEach((t) => t.stop());
-      micCamStream.getTracks().forEach((t) => t.stop());
-      canvasStream.getTracks().forEach((t) => t.stop());
-    },
+/**
+ * Auto-captura esta misma pestaña (ya con todas las capas montadas: vídeo
+ * de escritorio, PiP de cámara/VDO.Ninja, chat) para producir el stream
+ * final que se manda por WHIP. `preferCurrentTab` evita el selector
+ * completo de pantallas y pide directamente compartir "esta pestaña".
+ */
+export async function captureComposedTab(): Promise<MediaStreamTrack> {
+  const constraints: DisplayMediaStreamOptions & { preferCurrentTab?: boolean } = {
+    video: { frameRate: 30 },
+    audio: false,
+    preferCurrentTab: true,
   };
+  const stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+  const track = stream.getVideoTracks()[0];
+  if (!track) throw new Error("no se obtuvo vídeo al auto-capturar la pestaña");
+  return track;
+}
+
+export function stopStream(stream: MediaStream | null | undefined): void {
+  stream?.getTracks().forEach((t) => t.stop());
 }

@@ -9,46 +9,76 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <div id="app">
-      <canvas id="preview" width="1280" height="720"></canvas>
+    <div id="stage">
+      <!-- escritorio/juego capturado, fondo a pantalla completa -->
+      <video id="desktopVideo" autoplay muted playsinline></video>
 
-      <form id="settings">
-        <h1>CDJ-PI IRL</h1>
+      <!-- cámara local (webcam, Continuity Camera, Elgato si aparece como UVC) -->
+      <video id="camVideo" autoplay muted playsinline hidden></video>
 
-        <label>
-          WHIP endpoint
-          <input id="whipUrl" type="url" placeholder="https://tu-pi.example.com/whip/live" required />
-        </label>
-        <label>
-          Usuario (publish)
-          <input id="whipUser" type="text" autocomplete="off" />
-        </label>
-        <label>
-          Contraseña (publish)
-          <input id="whipPass" type="password" autocomplete="off" />
-        </label>
-        <label>
-          Canal de Twitch para chat (opcional)
-          <input id="chatChannel" type="text" placeholder="tu_canal" autocomplete="off" />
-        </label>
-        <label class="checkbox">
-          <input id="showCam" type="checkbox" checked />
-          Mostrar cámara (esquina)
-        </label>
+      <!-- cámara de iPhone vía VDO.Ninja: iframe, no se puede leer con canvas,
+           por eso todo el compositing final se hace auto-capturando esta
+           misma pestaña (ver src/main.ts) en vez de dibujar en un <canvas> -->
+      <iframe
+        id="vdoFrame"
+        hidden
+        allow="camera; microphone; autoplay; display-capture"
+        referrerpolicy="no-referrer"
+      ></iframe>
 
-        <button id="startBtn" type="submit">Empezar</button>
-        <button id="stopBtn" type="button" disabled>Parar</button>
-      </form>
-
-      <div id="status">
-        <span id="statusDot" class="dot"></span>
-        <span id="statusText">parado</span>
-        <span id="bitrate"></span>
-      </div>
+      <div id="chatBox" hidden></div>
     </div>
 
-    <video id="desktopVideo" autoplay muted playsinline hidden></video>
-    <video id="camVideo" autoplay muted playsinline hidden></video>
+    <form id="settings">
+      <h1>CDJ-PI IRL</h1>
+
+      <label>
+        WHIP endpoint
+        <input id="whipUrl" type="url" placeholder="https://tu-pi.example.com/whip/live" required />
+      </label>
+      <label>
+        Usuario (publish)
+        <input id="whipUser" type="text" autocomplete="off" />
+      </label>
+      <label>
+        Contraseña (publish)
+        <input id="whipPass" type="password" autocomplete="off" />
+      </label>
+
+      <label>
+        Fuente de cámara
+        <select id="cameraSource">
+          <option value="none">Ninguna</option>
+          <option value="webcam" selected>Webcam local / Elgato / Continuity</option>
+          <option value="vdoninja">iPhone vía VDO.Ninja</option>
+        </select>
+      </label>
+
+      <label id="webcamDeviceRow">
+        Dispositivo
+        <select id="webcamDevice"></select>
+      </label>
+
+      <label id="vdoRow" hidden>
+        ID de sala VDO.Ninja
+        <input id="vdoStreamId" type="text" placeholder="se genera solo si lo dejas vacío" autocomplete="off" />
+      </label>
+      <p id="vdoLink" hidden class="hint"></p>
+
+      <label>
+        Canal de Twitch para chat (opcional)
+        <input id="chatChannel" type="text" placeholder="tu_canal" autocomplete="off" />
+      </label>
+
+      <button id="startBtn" type="submit">Empezar</button>
+      <button id="stopBtn" type="button" disabled>Parar</button>
+    </form>
+
+    <div id="status">
+      <span id="statusDot" class="dot"></span>
+      <span id="statusText">parado</span>
+      <span id="bitrate"></span>
+    </div>
 
     <script type="module" src="./src/main.ts"></script>
   </body>
