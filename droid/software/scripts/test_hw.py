@@ -94,8 +94,9 @@ def camara(cfg):
     cam = Camera(cfg["camera"], sim=False)
     time.sleep(1.0)  # que ajuste la exposición
     frame = cam.read()
-    Image.fromarray(frame[..., ::-1]).save("/tmp/pio_camara.jpg")
-    print(f"  foto {frame.shape[1]}x{frame.shape[0]} guardada en /tmp/pio_camara.jpg")
+    out = Path.home() / "pio_camara.jpg"  # en tu carpeta, no en /tmp (compartida con otros usuarios)
+    Image.fromarray(frame[..., ::-1]).save(out)
+    print(f"  foto {frame.shape[1]}x{frame.shape[0]} guardada en {out}")
     face = FaceDetector().detect(frame)
     print(f"  cara: {face}" if face else "  no veo ninguna cara (ponte delante y repite)")
 
@@ -118,7 +119,7 @@ def vlm(cfg):
 
     c = cfg["vlm"]
     frame = Camera(cfg["camera"], sim=False).read()
-    w = VLMWorker(c["url"], c["prompt"], c["max_tokens"], c["timeout_s"], c["jpeg_width"])
+    w = VLMWorker(c["url"], c["prompt"], c["max_tokens"], c["timeout_s"], c["jpeg_width"], allow_remote=c["allow_remote"])
     t0 = time.monotonic()
     caption = w.ask(frame)
     obs = w.interpreter.interpret(caption)

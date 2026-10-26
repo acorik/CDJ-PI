@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import base64
 import io
+import ipaddress
 import json
 import logging
+import os
 import queue
 import re
 import threading
 import time
+import urllib.parse
 import urllib.request
 from collections import deque
 from dataclasses import dataclass
@@ -34,6 +37,9 @@ TOPICS: list[tuple[tuple[str, ...], str, str, float]] = [
     (("computer", "laptop", "screen", "phone", "keyboard", "monitor", "book"), "tech", "curious", 0.4),
     (("dark", "black", "nothing", "blurry", "blank"), "dark", "sleepy", 0.1),
 ]
+MAX_RESPONSE_BYTES = 256 * 1024
+MAX_CAPTION_CHARS = 300
+
 STOP = {"a", "an", "the", "of", "in", "on", "with", "and", "is", "are", "there", "this", "image", "picture", "shows", "to", "it", "its"}
 
 
@@ -80,12 +86,66 @@ def encode_jpeg(frame_bgr: np.ndarray, width: int) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def is_loopback_url(url: str) -> bool:
+    host = urllib.parse.urlsplit(url).hostname or ""
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def clean_caption(text: str) -> str:
+    """La respuesta de la VLM es un dato, no una orden: se recorta y se le quitan los controles."""
+    text = re.sub(r"[\x00-\x1f\x7f]+", " ", str(text))
+    return text.strip()[:MAX_CAPTION_CHARS]
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):  # noqa: D102 - una redirección podría sacar la foto fuera
+        return None
+
+
+# Sin proxies (urllib respeta HTTP_PROXY incluso para 127.0.0.1) y sin redirecciones:
+# las fotos de tu casa van directas al servidor local y a ningún otro sitio.
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+
+
+def prune_diary(path: Path, days: float) -> None:
+    """Borra del diario las entradas con más de `days` días."""
+    if days <= 0 or not path.exists():
+        return
+    cutoff = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - days * 86400))
+    keep = []
+    with path.open(encoding="utf-8") as f:
+        for line in f:
+            try:
+                if json.loads(line)["t"] >= cutoff:
+                    keep.append(line)
+            except (ValueError, KeyError):
+                continue  # línea rota: fuera
+    tmp = path.with_suffix(".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.writelines(keep)
+    os.replace(tmp, path)
+
+
 class VLMWorker:
     def __init__(self, url: str, prompt: str, max_tokens: int = 48, timeout_s: float = 60.0,
-                 jpeg_width: int = 384, diary: str | None = None):
+                 jpeg_width: int = 384, diary: str | None = None, diary_days: float = 7,
+                 allow_remote: bool = False):
+        if not is_loopback_url(url) and not allow_remote:
+            raise ValueError(f"vlm.url={url!r} no es local: las fotos saldrían de la Pi. "
+                             "Si de verdad lo quieres (p. ej. un PC tuyo con GPU), pon vlm.allow_remote: true")
+        if not is_loopback_url(url):
+            log.warning("la VLM es remota (%s): las fotos viajan por la red", url)
         self.url, self.prompt, self.max_tokens = url, prompt, max_tokens
         self.timeout_s, self.jpeg_width = timeout_s, jpeg_width
         self.diary = Path(diary).expanduser() if diary else None
+        self.diary_days = diary_days
+        self._last_prune = 0.0
         self.interpreter = Interpreter()
         self._results: queue.Queue[Observation] = queue.Queue()
         self._busy = threading.Event()
@@ -111,7 +171,7 @@ class VLMWorker:
     def _run(self, frame: np.ndarray) -> None:
         t0 = time.monotonic()
         try:
-            caption = self.ask(frame)
+            caption = clean_caption(self.ask(frame))
             obs = self.interpreter.interpret(caption, time.monotonic() - t0)
             log.info("VLM (%.1fs): %s -> %s/%s interés=%.2f", obs.latency_s, obs.caption, obs.topic, obs.mood, obs.interest)
             self._write_diary(obs)
@@ -131,13 +191,21 @@ class VLMWorker:
             "temperature": 0.2,
         }
         req = urllib.request.Request(self.url, json.dumps(body).encode(), {"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
-            return json.load(r)["choices"][0]["message"]["content"]
+        with _OPENER.open(req, timeout=self.timeout_s) as r:
+            raw = r.read(MAX_RESPONSE_BYTES + 1)
+        if len(raw) > MAX_RESPONSE_BYTES:
+            raise ValueError("respuesta de la VLM demasiado grande")
+        return str(json.loads(raw)["choices"][0]["message"]["content"])
 
     def _write_diary(self, obs: Observation) -> None:
         # el "diario" de Pío: lo que ha visto hoy, para leerlo juntos luego
+        # (describe tu casa: solo lo lee tu usuario y se borra pasados `diary_days` días)
         if not self.diary:
             return
-        self.diary.parent.mkdir(parents=True, exist_ok=True)
-        with self.diary.open("a", encoding="utf-8") as f:
+        self.diary.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if time.monotonic() - self._last_prune > 3600:
+            prune_diary(self.diary, self.diary_days)
+            self._last_prune = time.monotonic()
+        fd = os.open(self.diary, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        with os.fdopen(fd, "a", encoding="utf-8") as f:
             f.write(json.dumps({"t": time.strftime("%Y-%m-%d %H:%M:%S"), **obs.__dict__}, ensure_ascii=False) + "\n")

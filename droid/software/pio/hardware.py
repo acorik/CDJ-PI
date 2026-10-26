@@ -8,11 +8,19 @@ Pi 5: `RPi.GPIO` no funciona; instala `rpi-lgpio` (sustituto compatible) para lu
 from __future__ import annotations
 
 import logging
+import math
+import threading
+import time
 
 import numpy as np
 from PIL import Image
 
 log = logging.getLogger(__name__)
+
+
+def _finite(v: float, default: float = 0.0) -> float:
+    """Un NaN/inf nunca llega a un actuador: min/max de Python lo convertirían en un tope."""
+    return v if isinstance(v, (int, float)) and math.isfinite(v) else default
 
 
 # ---------------------------------------------------------------- cámara
@@ -86,7 +94,7 @@ class Servos:
             if name not in self.ch:
                 continue
             lo, hi = self.limits[name]
-            target = min(hi, max(lo, target))
+            target = min(hi, max(lo, _finite(target, self.pos[name])))
             cur = self.pos[name]
             self.pos[name] = cur + max(-step, min(step, target - cur))
             if self._kit is not None:
@@ -96,19 +104,33 @@ class Servos:
 
 # ---------------------------------------------------------------- ruedas
 class Wheels:
-    """Dos motores N20 en un DRV8833 (dos pines PWM por motor)."""
+    """Dos motores N20 en un DRV8833 (dos pines PWM por motor).
+
+    Lleva un "hombre muerto": si nadie llama a `drive()` en `watchdog_s` segundos (el bucle se
+    ha colgado, la cámara se ha bloqueado...), un hilo aparte para los motores.
+    """
 
     def __init__(self, cfg: dict, sim: bool):
         self.max = cfg["max_speed"]
+        self.watchdog_s = cfg.get("watchdog_s", 0.5)
         self.speed = (0.0, 0.0)
         self._l = self._r = None
+        self._lock = threading.Lock()
+        self._last_cmd = time.monotonic()
+        self._closed = threading.Event()
         if not sim:
             from gpiozero import Motor  # noqa: PLC0415
 
             self._l, self._r = Motor(*cfg["left"]), Motor(*cfg["right"])
+        threading.Thread(target=self._watchdog, name="wheels-watchdog", daemon=True).start()
 
     def drive(self, left: float, right: float) -> None:
-        left, right = (max(-1.0, min(1.0, v)) * self.max for v in (left, right))
+        left, right = (max(-1.0, min(1.0, _finite(v))) * self.max for v in (left, right))
+        with self._lock:
+            self._last_cmd = time.monotonic()
+            self._set(left, right)
+
+    def _set(self, left: float, right: float) -> None:
         self.speed = (left, right)
         for m, v in ((self._l, left), (self._r, right)):
             if m is None:
@@ -120,8 +142,22 @@ class Wheels:
             else:
                 m.backward(-v)
 
+    def _watchdog(self) -> None:
+        while not self._closed.wait(self.watchdog_s / 4):
+            with self._lock:
+                if self.speed != (0.0, 0.0) and time.monotonic() - self._last_cmd > self.watchdog_s:
+                    log.error("el bucle no manda órdenes desde hace %.1fs: paro las ruedas", self.watchdog_s)
+                    self._set(0.0, 0.0)
+
     def stop(self) -> None:
         self.drive(0, 0)
+
+    def close(self) -> None:
+        self.stop()
+        self._closed.set()
+        for m in (self._l, self._r):
+            if m is not None:
+                m.close()
 
 
 # ---------------------------------------------------------------- sensores
@@ -135,8 +171,11 @@ class Sensors:
         if not sim:
             from gpiozero import DigitalInputDevice  # noqa: PLC0415
 
-            # TCRT5000: el módulo pone la salida en ALTO cuando NO ve suelo (no rebota el IR)
-            self._cl, self._cr = DigitalInputDevice(cfg["cliff_left"]), DigitalInputDevice(cfg["cliff_right"])
+            # TCRT5000: el módulo pone la salida en ALTO cuando NO ve suelo (no rebota el IR).
+            # Con pull-up, un sensor desconectado también lee ALTO = "sin suelo": Pío no se
+            # mueve en vez de lanzarse a ciegas por el borde de la mesa (falla hacia lo seguro).
+            self._cl = DigitalInputDevice(cfg["cliff_left"], pull_up=True)
+            self._cr = DigitalInputDevice(cfg["cliff_right"], pull_up=True)
             if cfg["tof"]:
                 try:
                     import adafruit_vl53l0x  # noqa: PLC0415
@@ -155,7 +194,8 @@ class Sensors:
                 obstacle = self._tof.range < self.obstacle_mm
             except OSError:
                 pass
-        return bool(self._cl.value), bool(self._cr.value), obstacle
+        # con pull_up=True gpiozero considera "activo" el nivel BAJO (= ve suelo)
+        return not self._cl.is_active, not self._cr.is_active, obstacle
 
 
 # ---------------------------------------------------------------- HUD del simulador

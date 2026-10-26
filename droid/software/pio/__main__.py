@@ -54,7 +54,8 @@ def main() -> None:
     player = Player()
     brain = Brain(hfov=cam_cfg["hfov_deg"], vfov=cam_cfg["vfov_deg"], vlm_every_s=cfg["vlm"]["every_s"])
     v = cfg["vlm"]
-    vlm = None if args.no_vlm else VLMWorker(v["url"], v["prompt"], v["max_tokens"], v["timeout_s"], v["jpeg_width"], cfg["diary"])
+    vlm = None if args.no_vlm else VLMWorker(v["url"], v["prompt"], v["max_tokens"], v["timeout_s"], v["jpeg_width"],
+                                                 cfg["diary"], cfg["diary_days"], v["allow_remote"])
 
     running = True
 
@@ -105,7 +106,7 @@ def main() -> None:
                 break
             time.sleep(max(0.0, period - (time.monotonic() - now)))
     finally:
-        wheels.stop()
+        wheels.close()
         log.info("Pío se va a dormir. ¡Hasta luego!")
 
 

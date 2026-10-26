@@ -28,7 +28,7 @@ DEFAULTS: dict[str, Any] = {
         "trim": {"pan": 0, "tilt": 0, "roll": 0, "antenna_l": 0, "antenna_r": 0},
         "max_deg_per_s": 180,
     },
-    "motors": {"left": [12, 13], "right": [16, 26], "max_speed": 0.6},
+    "motors": {"left": [12, 13], "right": [16, 26], "max_speed": 0.6, "watchdog_s": 0.5},
     "sensors": {"cliff_left": 5, "cliff_right": 6, "tof": True, "obstacle_mm": 120},
     "vlm": {
         "url": "http://127.0.0.1:8080/v1/chat/completions",
@@ -37,9 +37,11 @@ DEFAULTS: dict[str, Any] = {
         "max_tokens": 48,
         "jpeg_width": 384,
         "prompt": "Describe what you see in one short sentence.",
+        "allow_remote": False,   # True = permitir mandar fotos a una VLM fuera de la Pi
     },
-    "audio": {"enabled": True, "volume": 0.5, "sample_rate": 22050},
-    "diary": "~/.pio/diario.jsonl",
+    "audio": {"enabled": True, "volume": 0.5, "sample_rate": 22050, "device": None},
+    "diary": "~/.pio/diario.jsonl",   # null = no guardar nada
+    "diary_days": 7,                  # se borran las entradas más antiguas
 }
 
 

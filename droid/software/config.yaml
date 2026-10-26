@@ -20,14 +20,22 @@ motors:
   left: [12, 13]         # DRV8833 AIN1/AIN2
   right: [16, 26]        # DRV8833 BIN1/BIN2
   max_speed: 0.6         # 1.0 = a tope; un pato de mesa no necesita correr
+  watchdog_s: 0.5        # si el bucle se cuelga más que esto, las ruedas se paran solas
 
 sensors: {cliff_left: 5, cliff_right: 6, tof: true, obstacle_mm: 120}
 
 vlm:
   url: http://127.0.0.1:8080/v1/chat/completions   # llama-server (ver systemd/pio-vlm.service)
+  allow_remote: false    # por privacidad, solo se aceptan URLs locales (127.0.0.1 / localhost)
   every_s: 20            # cada cuánto "piensa"; bájalo si tu modelo es rápido
   max_tokens: 48
   jpeg_width: 384
 
-audio: {enabled: true, volume: 0.5}
-diary: ~/.pio/diario.jsonl
+audio:
+  enabled: true
+  volume: 0.5
+  device: null           # null = el de por defecto; si no suena, mira `aplay -l` y pon p. ej. "hw:1,0"
+
+# Diario de lo que ve (texto, nunca fotos). Solo lo lee el usuario del servicio.
+diary: ~/.pio/diario.jsonl   # null = no guardar nada
+diary_days: 7

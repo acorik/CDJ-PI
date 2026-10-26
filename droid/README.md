@@ -197,28 +197,55 @@ python -m pio --sim --no-vlm  # ventana con la cara y la webcam; teclas: l (coge
 ```
 
 Para el simulador con VLM, compila llama.cpp y lanza
-`llama-server -hf ggml-org/SmolVLM2-500M-Video-Instruct-GGUF --port 8080`. Después ejecuta `python -m pio --sim`.
+`llama-server -hf ggml-org/SmolVLM2-500M-Video-Instruct-GGUF --host 127.0.0.1 --port 8080`. Después ejecuta `python -m pio --sim`.
 
 **En la Raspberry Pi 5:**
 
 ```bash
 git clone <este repo> ~/CDJ-PI && cd ~/CDJ-PI/droid/software
-./scripts/setup_pi.sh          # paquetes, SPI/I2C/I2S, venv, YuNet y llama.cpp
+./scripts/setup_pi.sh          # paquetes, buses, usuario `pio`, código en /opt/pio, modelos verificados, llama.cpp
 sudo reboot
-. .venv/bin/activate
-python scripts/test_hw.py      # prueba pantalla, servos, ruedas, sensores, cámara, audio y VLM
-python scripts/calibrar_servos.py   # centra cada servo y lo guarda en config.yaml
-sudo cp systemd/*.service /etc/systemd/system/ && sudo systemctl daemon-reload
+cd ~/CDJ-PI/droid/software
+/opt/pio/.venv/bin/python scripts/test_hw.py         # pantalla, servos, ruedas, sensores, cámara, audio y VLM
+/opt/pio/.venv/bin/python scripts/calibrar_servos.py # centra cada servo y lo guarda en config.yaml
+./scripts/setup_pi.sh --update # copia la config calibrada a /opt/pio
 sudo systemctl enable --now pio-vlm pio
 journalctl -u pio -f           # ver lo que piensa
-cat ~/.pio/diario.jsonl        # lo que ha visto hoy
+sudo cat /var/lib/pio/.pio/diario.jsonl   # lo que ha visto (últimos 7 días)
 ```
 
-(Los servicios suponen el usuario `pi` y el repo en `/home/pi/CDJ-PI`; cámbialo si no es tu caso.)
+Para cambiar la configuración o actualizar el código: edita en el repo y ejecuta `./scripts/setup_pi.sh --update`. Para usar `test_hw.py` o `calibrar_servos.py` con el droide ya en marcha, primero `sudo systemctl stop pio`, porque los dos no pueden usar el hardware a la vez.
 
 ---
 
-## 8. Hoja de ruta
+## 8. Seguridad
+
+Pío tiene una cámara encendida en tu casa y motores encima de una mesa, así que la seguridad cubre dos frentes: privacidad y que no haga daño.
+
+**Lo que ya hace el software**
+
+| Riesgo | Protección |
+|---|---|
+| Que las fotos salgan de casa | La VLM corre en la Pi. Pío **se niega a arrancar** si `vlm.url` no es `127.0.0.1`/`localhost`, salvo que pongas `allow_remote: true` a propósito. Ignora los proxies del sistema y no sigue redirecciones. El servicio tiene la red cortada por systemd salvo hacia `localhost` |
+| Que alguien entre en el droide por la red | Pío no abre ningún puerto. La VLM escucha solo en `127.0.0.1`, sin interfaz web |
+| Que una VLM "rara" le dé órdenes | Su respuesta solo se usa para buscar palabras clave (gato → sorpresa). Nunca se ejecuta. Se limpia de caracteres de control y se recorta antes de guardarla |
+| El diario (describe tu casa) | Solo texto, nunca fotos. Permisos `0600` (solo lo lee el usuario `pio`), se borra lo de más de 7 días y con `diary: null` no se guarda nada |
+| Si comprometen el proceso | Corre como usuario `pio`, **sin sudo**. Su código en `/opt/pio` es de root, así que no puede modificarse. La VLM corre con un usuario efímero, sin dispositivos ni red exterior. Exposición según `systemd-analyze security`: 3,6 y 2,9 (un servicio sin endurecer da ~9,6) |
+| Descargas manipuladas | llama.cpp va fijado a un tag y se comprueba su commit. Los modelos se descargan de una revisión fija y se verifica su SHA-256: si algo no cuadra, la instalación se para |
+| Que se tire de la mesa | Reflejo anti-borde con prioridad sobre todo, incluidas las animaciones. Un sensor de borde **desconectado** se lee como "sin suelo", así que Pío se queda quieto en vez de avanzar a ciegas |
+| Que el programa se cuelgue con las ruedas girando | Hombre muerto: si el bucle no manda órdenes en 0,5 s, un hilo aparte para los motores. Al salir o fallar, también se paran |
+| Datos basura (NaN) | Nunca llegan a un motor ni a un servo (antes un NaN ponía las ruedas a tope) |
+
+**Lo que te toca a ti (fuera del software)**
+
+- **SSH solo con clave** (`PasswordAuthentication no`) y un **cortafuegos**: `sudo apt install ufw && sudo ufw allow ssh && sudo ufw enable`.
+- `sudo apt install unattended-upgrades` para tener los parches de seguridad al día.
+- **Batería:** carga el pack 2S con su BMS y su cargador, nunca sin vigilar, y no la dejes en el robot si notas que se hincha o se calienta.
+- Las dependencias de Python están acotadas por versión mínima, no fijadas con hash. Para un robot casero es razonable; si lo quieres a prueba de bombas, fíjalas con `pip-compile --generate-hashes`.
+
+---
+
+## 9. Hoja de ruta
 
 - **v1.1 Oído:** palabra de activación "Oye Pío" con openWakeWord (ligero) y un micro USB. Reacciona a su nombre girando la cabeza.
 - **v1.2 Charla:** whisper.cpp (tiny) para entender frases cortas y que la VLM responda sobre lo que ve ("¿qué tengo en la mano?"). Contestaría con pitidos y un gesto, o con Piper TTS si aceptas el coste de CPU.

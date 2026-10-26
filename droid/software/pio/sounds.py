@@ -47,8 +47,9 @@ def synth(syllables: list[Syllable], sr: int = 22050, rng: random.Random | None 
 
 
 class Voice:
-    def __init__(self, enabled: bool = True, volume: float = 0.5, sample_rate: int = 22050):
-        self.sr, self.volume = sample_rate, volume
+    def __init__(self, enabled: bool = True, volume: float = 0.5, sample_rate: int = 22050,
+                 device: str | int | None = None):
+        self.sr, self.volume, self.device = sample_rate, volume, device
         self._sd = None
         self._lock = threading.Lock()
         if enabled:
@@ -64,7 +65,7 @@ class Voice:
         if not self._lock.acquire(blocking=False):
             return  # ya está hablando: no se pisa a sí mismo
         try:
-            self._sd.play(synth(PHRASES[phrase], self.sr) * self.volume, self.sr)
+            self._sd.play(synth(PHRASES[phrase], self.sr) * self.volume, self.sr, device=self.device)
             threading.Timer(sum(s[2] + 0.03 for s in PHRASES[phrase]) * 1.15, self._lock.release).start()
         except Exception as e:
             self._lock.release()

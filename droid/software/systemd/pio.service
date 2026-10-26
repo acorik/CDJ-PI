@@ -4,12 +4,42 @@ After=pio-vlm.service sound.target
 Wants=pio-vlm.service
 
 [Service]
-User=pi
+# Usuario de sistema sin sudo; solo los grupos del hardware que usa
+User=pio
+Group=pio
 SupplementaryGroups=gpio spi i2c video audio
-WorkingDirectory=/home/pi/CDJ-PI/droid/software
-ExecStart=/home/pi/CDJ-PI/droid/software/.venv/bin/python -m pio -c config.yaml
+StateDirectory=pio
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/pio
+# LG_WD: lgpio crea sus ficheros de control en esta carpeta (el código es de solo lectura)
+Environment=HOME=/var/lib/pio PYTHONPATH=/opt/pio LG_WD=/var/lib/pio PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/pio/.venv/bin/python -m pio -c /opt/pio/config.yaml
 Restart=on-failure
 RestartSec=3
+
+# --- Aislamiento -------------------------------------------------------------
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+# Red: solo puede hablar con la VLM local. AF_NETLINK lo usa libcamera para ver la cámara.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+IPAddressDeny=any
+IPAddressAllow=localhost
+# Sin ProtectClock/ProtectKernelLogs/PrivateDevices a propósito: activan una lista blanca de
+# dispositivos y dejarían a Pío sin GPIO, SPI, I2C, cámara ni audio.
+# Si algún componente falla con "Read-only file system", prueba a comentar ProtectKernelTunables.
 
 [Install]
 WantedBy=multi-user.target
