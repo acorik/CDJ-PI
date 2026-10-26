@@ -1,0 +1,33 @@
+# Configuración de Pío en la Raspberry Pi 5. Lo que no pongas aquí usa los valores de pio/config.py.
+loop_hz: 20
+
+camera: {width: 640, height: 480, hfov_deg: 66, vfov_deg: 41}   # Camera Module 3 estándar
+
+display:
+  driver: ili9341        # ili9341 (2.8") o st7789 (2.0"/2.4")
+  width: 320
+  height: 240
+  rotate: 0              # 0..3, según cómo montes la pantalla
+  gpio_dc: 24
+  gpio_rst: 25
+
+servos:
+  channels: {pan: 0, tilt: 1, roll: 2, antenna_l: 3, antenna_r: 4}   # canales del PCA9685
+  trim: {pan: 0, tilt: 0, roll: 0, antenna_l: 0, antenna_r: 0}      # calibra el centro aquí
+  max_deg_per_s: 180
+
+motors:
+  left: [12, 13]         # DRV8833 AIN1/AIN2
+  right: [16, 26]        # DRV8833 BIN1/BIN2
+  max_speed: 0.6         # 1.0 = a tope; un pato de mesa no necesita correr
+
+sensors: {cliff_left: 5, cliff_right: 6, tof: true, obstacle_mm: 120}
+
+vlm:
+  url: http://127.0.0.1:8080/v1/chat/completions   # llama-server (ver systemd/pio-vlm.service)
+  every_s: 20            # cada cuánto "piensa"; bájalo si tu modelo es rápido
+  max_tokens: 48
+  jpeg_width: 384
+
+audio: {enabled: true, volume: 0.5}
+diary: ~/.pio/diario.jsonl

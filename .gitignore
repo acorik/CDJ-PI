@@ -20,3 +20,9 @@ npm-debug.log*
 *.key
 *.crt
 !deploy/**/*.example
+
+# droid (Pío)
+.venv/
+__pycache__/
+.pytest_cache/
+droid/software/models/

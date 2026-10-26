@@ -1,0 +1,11 @@
+# Raspberry Pi 5 (además de los paquetes apt de scripts/setup_pi.sh)
+numpy>=1.26
+pillow>=10
+pyyaml>=6
+sounddevice>=0.4
+rpi-lgpio>=0.6                      # RPi.GPIO compatible con la Pi 5 (lo usa luma.lcd)
+luma.lcd>=2.11
+gpiozero>=2.0
+adafruit-blinka>=8
+adafruit-circuitpython-servokit>=1.3
+adafruit-circuitpython-vl53l0x>=3.6

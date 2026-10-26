@@ -1,0 +1,15 @@
+[Unit]
+Description=Pio - micro droide pato
+After=pio-vlm.service sound.target
+Wants=pio-vlm.service
+
+[Service]
+User=pi
+SupplementaryGroups=gpio spi i2c video audio
+WorkingDirectory=/home/pi/CDJ-PI/droid/software
+ExecStart=/home/pi/CDJ-PI/droid/software/.venv/bin/python -m pio -c config.yaml
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

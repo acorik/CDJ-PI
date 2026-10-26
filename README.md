@@ -24,6 +24,7 @@ El backend es el **único** servicio expuesto (detrás de Caddy/nginx con TLS). 
 
 - `backend/` — API REST + WebSocket (Express, TypeScript), autenticación JWT, cliente obs-websocket, métricas del sistema.
 - `frontend/` — Panel de control (React + Vite + TS): login, escenas, mezclador de audio, controles de stream, stats en vivo.
+- `droid/` — **Pío**, micro droide pato con VLM local en una Raspberry Pi 5: modelo 3D paramétrico (OpenSCAD + STL), lista de compra y cableado, y el software (reflejos + VLM). Ver [`droid/README.md`](droid/README.md).
 - `chromeos-app/` — PWA ultraligera (sin dependencias) para ChromeOS/Chromebooks de poca RAM: captura desktop+mic+cámara y publica por WHIP. Ver `chromeos-app/README.md` y `docs/CHROMEOS_APP.md`.
 - `deploy/` — unidades systemd hardened (backend y MediaMTX), Caddyfile con TLS automático, docker-compose, config de MediaMTX.
 - `docs/` — guía de instalación en la Raspberry Pi, la app de ChromeOS, y notas de arquitectura.
