@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 BG = (8, 10, 20)
 EYE = (166, 242, 255)
 BLUSH = (255, 120, 150)
+HEART = (255, 92, 138)
 
 # Forma de cada ánimo: (escala alto ojo, párpado superior 0..1, párpado inferior "sonrisa" 0..1, inclinación cejas)
 MOODS: dict[str, tuple[float, float, float, float]] = {
@@ -23,6 +24,7 @@ MOODS: dict[str, tuple[float, float, float, float]] = {
     "sleepy":    (0.90, 0.55, 0.00, 0.0),
     "sad":       (0.95, 0.30, 0.00, 0.35),    # cejas caídas hacia fuera
     "annoyed":   (0.90, 0.40, 0.00, -0.35),   # cejas en V
+    "love":      (1.00, 0.00, 0.00, 0.0),     # ojos de corazón (se dibujan aparte)
 }
 
 
@@ -87,6 +89,9 @@ class Face:
             if ry < 3:  # ojo cerrado: una rayita (o una sonrisa si duerme)
                 d.line([(cx - rx, cy0), (cx + rx, cy0)], fill=EYE, width=6)
                 continue
+            if mood == "love":
+                _heart(d, cx, cy0, rx * 1.1, ry / r)
+                continue
             d.ellipse([cx - rx, cy0 - ry, cx + rx, cy0 + ry], fill=EYE)
             # brillos (lo que lo hace mono de verdad)
             d.ellipse([cx + rx * 0.15, cy0 - ry * 0.55, cx + rx * 0.55, cy0 - ry * 0.15], fill=(255, 255, 255))
@@ -107,6 +112,17 @@ class Face:
                 bx, by = self.w / 2 + side * self.w * 0.40, self.h * 0.80
                 d.ellipse([bx - 18, by - 8, bx + 18, by + 8], fill=BLUSH)
         return img
+
+
+def _heart(d: ImageDraw.ImageDraw, cx: float, cy: float, size: float, squash: float = 1.0) -> None:
+    """Corazón centrado en (cx, cy): dos círculos + un triángulo, con un brillo."""
+    r = size * 0.5
+    h = size * squash
+    cy += h * 0.2
+    for sx in (-1, 1):
+        d.ellipse([cx + sx * r * 0.95 - r, cy - h * 0.55 - r * squash, cx + sx * r * 0.95 + r, cy - h * 0.55 + r * squash], fill=HEART)
+    d.polygon([(cx - 1.95 * r, cy - h * 0.4), (cx + 1.95 * r, cy - h * 0.4), (cx, cy + h * 1.05)], fill=HEART)
+    d.ellipse([cx - r * 1.3, cy - h * 0.95, cx - r * 0.75, cy - h * 0.45], fill=(255, 255, 255))
 
 
 def breathing(t: float, period: float = 4.0) -> float:

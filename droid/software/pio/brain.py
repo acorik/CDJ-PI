@@ -4,6 +4,8 @@ Reflejos rápidos (cada tick, ~20 Hz): seguir caras, no caerse de la mesa, parpa
 Pensamiento lento (cada ~20 s): lo que diga la VLM cambia su ánimo y su curiosidad.
 
 Es lógica pura: recibe `Percepts` y devuelve `Actions`, así se puede testear sin hardware.
+Los gestos (saludar, asustarse, bostezar...) los pide con `Actions.play` y los ejecuta
+`animations.Player` encima de la pose que decide aquí.
 """
 from __future__ import annotations
 
@@ -46,6 +48,9 @@ class Actions:
     blush: bool = False
     say: str | None = None
     want_vlm: bool = False
+    play: str | None = None     # animación a lanzar (ver animations.LIBRARY)
+    blink: bool = False         # parpadeo forzado
+    lock_wheels: bool = False   # las animaciones no pueden mover las ruedas
 
 
 @dataclass
@@ -69,7 +74,9 @@ class Brain:
     _reflex_dir: float = 1.0
     _wander_turn: float = 0.0
     _curious: Observation | None = None
-    _roll_sign: float = 1.0
+    _next_idle_anim: float = 20.0
+    _last_play: dict = field(default_factory=dict)
+    _prev_obstacle: bool = False
     _t: float | None = None
 
     # ------------------------------------------------------------------
@@ -79,6 +86,11 @@ class Brain:
 
     def vlm_sent(self, t: float) -> None:
         self.last_vlm_t = t
+
+    def _play(self, a: Actions, name: str, t: float, cooldown: float = 0.0) -> None:
+        if a.play is None and t - self._last_play.get(name, -1e9) >= cooldown:
+            a.play = name
+            self._last_play[name] = t
 
     def step(self, p: Percepts) -> Actions:
         dt = 0.0 if self._t is None else max(0.0, min(0.5, p.t - self._t))
@@ -96,43 +108,47 @@ class Brain:
         lifted = p.cliff_left and p.cliff_right
         if lifted:
             if self.state != "LIFTED":
-                a.say = "surprised"
+                self._play(a, "susto", t)
                 self._go("LIFTED", t)
             return self._lifted(a, t)
         if self.state == "LIFTED":
-            a.say = "happy"   # alivio al volver al suelo
+            self._play(a, "feliz", t)   # alivio al volver al suelo
             self._go("IDLE", t)
 
         # --- prioridad 2: dormir ------------------------------------------
         if self.state == "SLEEP":
             if self.energy > 0.95 or (p.face and self.energy > 0.3):
-                a.say = "hello" if p.face else None
+                self._play(a, "despertar", t)
+                self.last_greet_t = t   # despertar ya incluye el saludo
                 self._go("TRACK" if p.face else "IDLE", t)
             else:
                 return self._sleep(a, t)
         elif self.energy < 0.12:
-            a.say = "sleepy"
+            self._play(a, "dormirse", t)
             self._go("SLEEP", t)
             return self._sleep(a, t)
 
         # --- percepciones -> transiciones ---------------------------------
         if p.face:
             if t - self.last_face_t > 30 and t - self.last_greet_t > 30:
-                a.say, self.last_greet_t = "hello", t
+                self._play(a, "hola", t)
+                self.last_greet_t = t
             self.last_face_t = t
             if self.state != "CURIOUS":
                 self._go("TRACK", t)
         elif self.state == "TRACK" and t - self.last_face_t > 3.0:
+            if self.last_face_t - self.since > 10:   # se ha ido alguien con quien estaba a gusto
+                self._play(a, "triste", t, cooldown=60)
             self._go("IDLE", t)
 
         obs = p.observation
         if obs:
             if obs.topic == "dark":
                 self.energy = max(0.0, self.energy - 0.05)
+                self._play(a, "bostezo", t, cooldown=60)
             if obs.interest >= 0.6:
                 self._curious = obs
-                self._roll_sign = self.rng.choice([-1.0, 1.0])
-                a.say = a.say or {"surprised": "surprised", "happy": "happy"}.get(obs.mood, "curious")
+                self._play(a, "feliz" if obs.mood == "happy" else "eh", t)
                 self._go("CURIOUS", t)
 
         if self.state == "IDLE" and t - self.since > 30 and self.energy > 0.5:
@@ -153,6 +169,7 @@ class Brain:
         if t < self._reflex_until:
             a.left, a.right = -0.4 + 0.2 * self._reflex_dir, -0.4 - 0.2 * self._reflex_dir
             a.mood = "surprised"
+            a.lock_wheels = True
 
         a.want_vlm = t - self.last_vlm_t >= self.vlm_every_s
         a.pan, a.tilt = self.pan, self.tilt
@@ -171,6 +188,7 @@ class Brain:
         a.mood = "sleepy"
         self._look(0, -15 - 3 * math.sin(t * 2 * math.pi / 4), 0.05)  # cabeza gacha, respirando
         a.antenna_l = a.antenna_r = -35
+        a.lock_wheels = True
         a.pan, a.tilt = self.pan, self.tilt
         return a
 
@@ -179,6 +197,7 @@ class Brain:
         a.blush = True
         self._look(25 * math.sin(t * 3), 10, 0.2)  # mira a todos lados: ¿dónde voy?
         self._antenna_wiggle(a, t, 30, 3)
+        a.lock_wheels = True   # ruedas al aire: quietas
         a.pan, a.tilt = self.pan, self.tilt
         return a
 
@@ -187,8 +206,11 @@ class Brain:
             self._gaze_target = (self.rng.uniform(-45, 45), self.rng.uniform(-10, 15),
                                  self.rng.choice([0, 0, 0, -12, 12]))
             self._next_saccade = t + self.rng.uniform(1.5, 4.0)
-            if self.rng.random() < 0.06:
-                a.say = "quack"
+        if t >= self._next_idle_anim:  # de vez en cuando, un gesto para que se le vea vivo
+            pool = {"mirar_alrededor": 3, "cuac": 2, "pensar": 1, "estornudo": 0.5,
+                    "bostezo": 3 if self.energy < 0.4 else 0.3}
+            self._play(a, self.rng.choices(list(pool), weights=list(pool.values()))[0], t)
+            self._next_idle_anim = t + self.rng.uniform(20, 45)
         pan, tilt, roll = self._gaze_target
         self._look(pan, tilt, 0.25)
         a.roll = roll
@@ -202,6 +224,8 @@ class Brain:
             a.gaze_x, a.gaze_y = p.face.x, p.face.y
             self._look(self.pan - p.face.x * self.hfov / 2, self.tilt - p.face.y * self.vfov / 2, 0.15)
             a.blush = p.face.size > 0.35  # ¡demasiado cerca! (se sonroja)
+            if a.blush:
+                self._play(a, "amor", t, cooldown=30)
             # si el cuello va al límite, gira el cuerpo entero
             if abs(self.pan) > 40:
                 turn = 0.25 * math.copysign(1, self.pan)
@@ -210,6 +234,9 @@ class Brain:
 
     def _explore(self, a: Actions, p: Percepts, t: float) -> None:
         a.mood = "neutral"
+        if p.obstacle and not self._prev_obstacle:
+            self._play(a, "enfado", t, cooldown=20)   # ¡quién ha puesto esto aquí!
+        self._prev_obstacle = p.obstacle
         if p.obstacle:
             a.left, a.right = -0.3, 0.3  # gira sobre sí mismo
             self._look(-30, 0, 0.2)
@@ -222,7 +249,5 @@ class Brain:
     def _curious_b(self, a: Actions, p: Percepts, t: float) -> None:
         obs = self._curious
         a.mood = obs.mood if obs and obs.mood != "neutral" else "curious"
-        a.roll = 18 * self._roll_sign   # el gesto "¿eh?"
-        a.antenna_l, a.antenna_r = 30, -10
         if p.face:
             a.gaze_x, a.gaze_y = p.face.x, p.face.y

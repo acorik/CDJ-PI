@@ -11,6 +11,7 @@ import signal
 import time
 
 from . import config as config_mod
+from .animations import Player
 from .brain import Brain, Percepts
 from .face import Face
 from .hardware import Camera, Display, Sensors, Servos, Wheels, sim_hud
@@ -26,8 +27,15 @@ def main() -> None:
     ap.add_argument("-c", "--config", help="ruta a config.yaml")
     ap.add_argument("--sim", action="store_true", help="modo simulador (sin hardware)")
     ap.add_argument("--no-vlm", action="store_true", help="solo reflejos, sin VLM")
+    ap.add_argument("--anim", help="reproduce esta animación al arrancar (ver --list-anims)")
+    ap.add_argument("--list-anims", action="store_true", help="lista las animaciones y sale")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
+    if args.list_anims:
+        from .animations import describe  # noqa: PLC0415
+
+        print(describe())
+        return
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -43,6 +51,7 @@ def main() -> None:
     voice = Voice(**cfg["audio"])
     detector = FaceDetector()
     face = Face(disp["width"], disp["height"])
+    player = Player()
     brain = Brain(hfov=cam_cfg["hfov_deg"], vfov=cam_cfg["vfov_deg"], vlm_every_s=cfg["vlm"]["every_s"])
     v = cfg["vlm"]
     vlm = None if args.no_vlm else VLMWorker(v["url"], v["prompt"], v["max_tokens"], v["timeout_s"], v["jpeg_width"], cfg["diary"])
@@ -58,7 +67,8 @@ def main() -> None:
 
     period = 1.0 / cfg["loop_hz"]
     last = time.monotonic()
-    voice.say("hello")
+    if not player.play(args.anim or "despertar", time.monotonic()):
+        log.warning("no existe la animación %r (prueba --list-anims)", args.anim)
     log.info("Pío despierto (%s)", "simulador" if sim else "Raspberry Pi")
     try:
         while running:
@@ -71,6 +81,9 @@ def main() -> None:
                                 obstacle=obstacle, observation=vlm.poll() if vlm else None)
 
             act = brain.step(percepts)
+            if act.play and player.play(act.play, now):
+                log.info("animación: %s", act.play)
+            act = player.apply(act, now)
 
             if act.want_vlm and vlm and brain.state != "SLEEP" and vlm.request(frame):
                 brain.vlm_sent(now)
@@ -82,6 +95,8 @@ def main() -> None:
 
             face.state.mood, face.state.blush = act.mood, act.blush
             face.state.gaze_x, face.state.gaze_y = act.gaze_x, act.gaze_y
+            if act.blink:
+                face.blink()
             face.update(dt)
             img = face.render()
             display.show(img)

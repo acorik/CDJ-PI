@@ -209,7 +209,7 @@ module chassis() {
             for (s = [-1, 1]) translate([s * (motor_x0 - 14), axle_y, (axle_z - 7 + body_flat) / 2])
                 cube([22, 18, body_flat - (axle_z - 7)], center = true);
         }
-        for (h = pi_holes) translate([h[0], pi_y + h[1], body_flat + 8]) cylinder(d = 2.5, h = 40, $fn = 16);
+        for (h = pi_holes) translate([h[0], pi_y + h[1], body_flat + 8]) cylinder(d = 2.2, h = 40, $fn = 16); // M2.5 autorroscante
         for (s = [-1, 1]) translate([s * (motor_x0 - motor_len / 2), axle_y, axle_z])
             cube([motor_len + 2, 12.4, 10.4], center = true);
         // paso de cables de los motores y sensores de borde
@@ -218,7 +218,7 @@ module chassis() {
     // poste para la bola loca (comprada) bajo la cola
     color("#D9D4C7") translate([0, caster_y, caster_h]) difference() {
         cylinder(d = 24, h = body_flat - 3 - caster_h + 0.01);
-        for (a = [0, 180]) rotate(a) translate([caster_holes / 2, 0, -1]) cylinder(d = 2.5, h = 12, $fn = 16);
+        for (a = [0, 180]) rotate(a) translate([caster_holes / 2, 0, -1]) cylinder(d = 2.2, h = 12, $fn = 16);
     }
 }
 

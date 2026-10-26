@@ -61,9 +61,9 @@ Las latencias son orientativas. **Mídelas en tu Pi** con `scripts/bench_vlm.py`
 
 ---
 
-## 3. Lista de la compra (~250-290 €)
+## 3. Lista de la compra (~270 €)
 
-Precios orientativos en euros (octubre de 2026, tiendas habituales y AliExpress). Revísalos antes de comprar, porque la Pi ha subido de precio por la RAM.
+La lista completa, con tornillería, filamento, términos de búsqueda y totales, está en **[`BOM.csv`](BOM.csv)** (se abre con Excel o Google Sheets). Aquí va el resumen. Precios orientativos en euros (octubre de 2026, tiendas habituales y AliExpress). Revísalos antes de comprar, porque la Pi ha subido de precio por la RAM.
 
 | Componente | Ud. | ~€ | Notas |
 |---|---|---|---|
@@ -71,6 +71,7 @@ Precios orientativos en euros (octubre de 2026, tiendas habituales y AliExpress)
 | Active Cooler oficial | 1 | 6 | **Obligatorio**: la VLM tiene la CPU al 100 % |
 | microSD 64 GB A2 | 1 | 10 | Más adelante, NVMe para cargar el modelo más rápido |
 | Camera Module 3 (estándar, no *wide*) | 1 | 28 | Va dentro del pico |
+| Cable de cámara para Pi 5 (22→15 pines, 200 mm) | 1 | 3 | La Pi 5 usa el conector mini: el cable que trae la cámara no vale |
 | Pantalla SPI 2.8" 320×240 ILI9341 (sin táctil) | 1 | 8 | O ST7789 de 2.0-2.4": ajusta `screen_pcb` en el CAD |
 | PCA9685 (16 canales PWM, I2C) | 1 | 4 | Servos sin temblores |
 | Servo MG90S (engranaje metálico) | 3 | 12 | Cuello: giro, asentir y ladear |
@@ -142,20 +143,43 @@ Orden de montaje:
 
 ---
 
-## 6. Software
+## 6. Animaciones
+
+Los gestos están en [`software/pio/animations.py`](software/pio/animations.py) como keyframes con *easing* (incluido un `back` que se pasa un poco y vuelve, muy de dibujo animado). Cada gesto mueve a la vez el cuello, las antenas, las ruedas, los ojos (ánimo, parpadeo, mirada, coloretes) y los pitidos. El cerebro decide **cuándo** y el `Player` lo mezcla encima de lo que esté haciendo: puede asentir mientras te sigue con la mirada.
+
+![animaciones](docs/img/animaciones.gif)
+
+| Gesto | Cuándo lo hace solo |
+|---|---|
+| `hola` | Ve una cara después de 30 s sin ver a nadie |
+| `amor` (ojos de corazón) | Te acercas mucho a su cara |
+| `triste` | Te vas después de un rato juntos |
+| `eh` / `feliz` | La VLM le dice algo nuevo e interesante |
+| `susto` → `feliz` | Lo coges en brazos / lo vuelves a dejar en el suelo |
+| `enfado` | Choca con un obstáculo explorando |
+| `bostezo` | Está cansado o la VLM dice que está oscuro |
+| `dormirse` / `despertar` | Se queda sin energía / recupera energía o le despiertas |
+| `mirar_alrededor`, `cuac`, `pensar`, `estornudo` | De vez en cuando en reposo, para que se le vea vivo |
+| `si`, `no`, `baile`, `giro` | Bajo demanda: `python -m pio --sim --anim baile` |
+
+**Crear un gesto nuevo:** añade un `Anim` a `LIBRARY` (los convenios de signos están en el propio fichero) y previsualízalo sin robot con `python scripts/preview_animaciones.py mi_gesto`, que genera un GIF. Los tests comprueban que los keyframes estén ordenados, que los sonidos y ánimos existan y que el cuello vuelva a su sitio al terminar.
+
+## 7. Software
 
 ```
 software/
 ├── pio/
 │   ├── __main__.py   bucle principal (20 Hz)
-│   ├── brain.py      estados SLEEP/IDLE/TRACK/EXPLORE/CURIOUS/LIFTED + energía
-│   ├── face.py       ojos: 7 ánimos, parpadeo, mirada, coloretes
+│   ├── brain.py      estados SLEEP/IDLE/TRACK/EXPLORE/CURIOUS/LIFTED + energía + qué gesto toca
+│   ├── animations.py motor de keyframes + 18 gestos
+│   ├── preview.py    dibuja a Pío en 2D para previsualizar gestos
+│   ├── face.py       ojos: 8 ánimos (incluidos ojos de corazón), parpadeo, mirada, coloretes
 │   ├── vision.py     detección de caras (YuNet)
 │   ├── vlm.py        cliente de llama-server + intérprete (tema/ánimo/novedad) + diario
 │   ├── sounds.py     pitiditos de pato sintetizados
 │   └── hardware.py   cámara, pantalla, servos, ruedas y sensores (real y simulado)
 ├── tests/            pytest, sin hardware
-├── scripts/          setup_pi.sh, bench_vlm.py
+├── scripts/          setup_pi.sh, test_hw.py, calibrar_servos.py, preview_animaciones.py, bench_vlm.py
 ├── systemd/          pio-vlm.service (VLM) y pio.service (droide)
 └── config.yaml
 ```
@@ -181,6 +205,9 @@ Para el simulador con VLM, compila llama.cpp y lanza
 git clone <este repo> ~/CDJ-PI && cd ~/CDJ-PI/droid/software
 ./scripts/setup_pi.sh          # paquetes, SPI/I2C/I2S, venv, YuNet y llama.cpp
 sudo reboot
+. .venv/bin/activate
+python scripts/test_hw.py      # prueba pantalla, servos, ruedas, sensores, cámara, audio y VLM
+python scripts/calibrar_servos.py   # centra cada servo y lo guarda en config.yaml
 sudo cp systemd/*.service /etc/systemd/system/ && sudo systemctl daemon-reload
 sudo systemctl enable --now pio-vlm pio
 journalctl -u pio -f           # ver lo que piensa
@@ -191,7 +218,7 @@ cat ~/.pio/diario.jsonl        # lo que ha visto hoy
 
 ---
 
-## 7. Hoja de ruta
+## 8. Hoja de ruta
 
 - **v1.1 Oído:** palabra de activación "Oye Pío" con openWakeWord (ligero) y un micro USB. Reacciona a su nombre girando la cabeza.
 - **v1.2 Charla:** whisper.cpp (tiny) para entender frases cortas y que la VLM responda sobre lo que ve ("¿qué tengo en la mano?"). Contestaría con pitidos y un gesto, o con Piper TTS si aceptas el coste de CPU.
