@@ -1,0 +1,16 @@
+[Unit]
+Description=Pio - VLM local (llama.cpp)
+After=network-online.target
+
+[Service]
+User=pi
+# 3 hilos para la VLM: deja 1 núcleo libre para los reflejos (caras, servos, ruedas)
+# Primera vez: -hf descarga el modelo + proyector de visión a ~/.cache/llama.cpp (necesita internet)
+ExecStart=/home/pi/llama.cpp/build/bin/llama-server -hf ggml-org/SmolVLM2-500M-Video-Instruct-GGUF \
+  --host 127.0.0.1 --port 8080 -t 3 -c 2048
+Nice=5
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

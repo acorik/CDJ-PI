@@ -1,0 +1,9 @@
+[project]
+name = "pio"
+version = "0.1.0"
+description = "Pío: micro droide pato con VLM local en una Raspberry Pi 5"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
