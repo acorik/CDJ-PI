@@ -1,0 +1,34 @@
+categoria,componente,cantidad,precio_unidad_eur,precio_total_eur,especificacion,buscar_como,notas
+Cerebro,Raspberry Pi 5 8 GB,1,100,100,"BCM2712, 8 GB",raspberry pi 5 8gb,La de 4 GB vale con SmolVLM-500M (ahorras ~25 €)
+Cerebro,Active Cooler oficial Pi 5,1,6,6,ventilador + disipador,raspberry pi 5 active cooler,Obligatorio: la VLM pone la CPU al 100 %
+Cerebro,Tarjeta microSD 64 GB A2,1,10,10,clase A2 / U3,microsd 64gb a2,Más adelante: NVMe para cargar el modelo más rápido
+Sentidos,Raspberry Pi Camera Module 3 (estándar),1,28,28,"12 MP, autofoco, 66° H",camera module 3,No la versión wide; va dentro del pico
+Sentidos,Cable cámara Pi 5 (22→15 pines) 200 mm,1,3,3,FFC mini a estándar,pi 5 camera cable 200mm,La Pi 5 usa conector mini: el cable de la cámara no vale tal cual
+Sentidos,Sensor ToF VL53L0X (módulo),1,4,4,"I2C, hasta 2 m",vl53l0x module,Obstáculos delante
+Sentidos,Sensor IR de borde TCRT5000 (módulo con comparador),2,1,2,salida digital DO,tcrt5000 module,"Alimentar a 3,3 V; ajustar el potenciómetro sobre la mesa"
+Cara,"Pantalla SPI 2.8"" 320×240 ILI9341 (sin táctil)",1,8,8,"SPI, 3,3 V",ili9341 2.8 spi,"O ST7789 2.0-2.4"": cambia display.driver y screen_pcb en el CAD"
+Cara,Metacrilato ahumado 2 mm (visera),1,3,3,recorte 86×50 mm,metacrilato ahumado 2mm,Opcional: también se imprime en PETG negro translúcido
+Movimiento,Driver de servos PCA9685 16 canales,1,4,4,I2C,pca9685,Servos sin temblores
+Movimiento,Servo MG90S (engranaje metálico),3,4,12,"9 g, 180°",mg90s,"Cuello: giro, asentir, ladear"
+Movimiento,Servo SG90,2,2,4,"9 g, 180°",sg90,Antenas
+Movimiento,Motor N20 6 V ~300 rpm + rueda 43 mm,2,4,8,eje D 3 mm,n20 motor 300rpm wheel 43mm,Sin encoder en v1
+Movimiento,Driver de motores DRV8833,1,2,2,"2 canales, 2,7-10,8 V",drv8833,Dos pines PWM por motor
+Movimiento,"Bola loca 3/4"" (tipo Pololu)",1,3,3,plástico o metal,ball caster 3/4,Mídela y ajusta caster_h en el CAD
+Voz,Amplificador I2S MAX98357A,1,4,4,3 W clase D,max98357a,La Pi 5 no tiene jack de audio
+Voz,Altavoz 28 mm 4-8 Ω 2 W,1,2,2,,speaker 28mm 8ohm 2w,Va en el pecho
+Energía,Pack Li-ion 2S 18650 ~3000 mAh con BMS,1,18,18,"7,4 V, 68×37×19 mm",2s 18650 battery pack bms,"Termorretráctil, con cable JST/XT30"
+Energía,"Cargador 2S USB-C (PD) para 7,4 V",1,5,5,módulo de carga 2S,2s lithium charger usb c,Accesible por el lateral del cuerpo
+Energía,Reductor 5 V 5 A de calidad (p. ej. Pololu D36V50F5),1,20,20,"entrada 7,4 V, salida 5 V 5 A",5v 5a step down regulator,Para la Pi. Uno barato y ruidoso da cuelgues raros
+Energía,UBEC 5 V 3 A,1,5,5,,ubec 5v 3a,Rama aparte para los servos
+Energía,Interruptor basculante mini,1,1,1,13×8 mm,mini rocker switch 13x8,Lateral izquierdo
+Montaje,Tornillos autorroscantes M2.5×6,4,0.1,0.4,,m2.5x6 self tapping,Pi 5 sobre los pilares
+Montaje,Tornillos M2×6 + tuercas,20,0.05,1.0,,m2 screw kit,"Servos, sensores, PCA9685"
+Montaje,Tornillos M2.5×8 autorroscantes,2,0.1,0.2,,m2.5x8 self tapping,Bola loca al poste del chasis
+Montaje,"Cables dupont H-H/H-M + JST-XH, termorretráctil",1,6,6,,dupont jumper wires kit,
+Montaje,Velcro adhesivo / brida para la batería,1,1,1,,,
+Impresión,"PLA crema (cuerpo, cabeza, cola)",0.3,20,6.0,~300 g,pla cream / ivory,
+Impresión,"PLA naranja (pico, pies, collar)",0.1,20,2.0,~100 g,pla orange,
+Impresión,"PLA/PETG negro (cuello, visera, antenas)",0.05,20,1.0,~50 g,pla black,
+Opcional,Micrófono USB mini,1,4,4,,usb mini microphone,Para la v1.1 (Oye Pío)
+
+TOTAL (sin opcionales),,,,269.6,,,Precios orientativos oct. 2026; revísalos
