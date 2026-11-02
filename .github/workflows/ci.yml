@@ -54,25 +54,25 @@ jobs:
       - run: npm run build
       - run: npm audit --audit-level=high || true
 
-  chromeos-dj:
+  chromeos-loop:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: chromeos-dj
+        working-directory: chromeos-loop
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: chromeos-dj/package-lock.json
+          cache-dependency-path: chromeos-loop/package-lock.json
       - run: npm ci
       - run: npm test
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:
-          name: chromeos-dj-dist
-          path: chromeos-dj/dist
+          name: chromeos-loop-dist
+          path: chromeos-loop/dist
 
   droid:
     runs-on: ubuntu-latest

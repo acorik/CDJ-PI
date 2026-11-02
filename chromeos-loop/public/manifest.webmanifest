@@ -1,0 +1,11 @@
+{
+  "name": "CDJ-PI LOOP",
+  "short_name": "CDJ-PI LOOP",
+  "description": "Loop station con sintes, baterías y acordes para ChromeOS",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0b0c0f",
+  "theme_color": "#0b0c0f",
+  "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
