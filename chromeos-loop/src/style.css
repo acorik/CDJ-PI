@@ -176,3 +176,4 @@ legend { color: var(--accent); font-weight: 700; padding: 0 4px; }
   .app { grid-template-rows: 34px minmax(150px, 32vh) 1fr; }
   .twave { height: 20px; }
 }
+.mixrow { border-top: 1px solid var(--line); padding-top: 4px; justify-content: space-around; }

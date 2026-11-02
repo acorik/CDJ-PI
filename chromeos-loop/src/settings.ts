@@ -24,6 +24,8 @@ export interface Settings {
   limiter: boolean;
   fps: 60 | 30;
   fxSlots: [string, string, string];
+  /** MPD218: pads como batería (A batería · B notas · C pistas/acordes) o todos como piano */
+  mpdMode: "drums" | "piano";
 }
 
 export const DEFAULTS: Settings = {
@@ -51,6 +53,7 @@ export const DEFAULTS: Settings = {
   limiter: true,
   fps: 60,
   fxSlots: ["echo", "reverb", "filter"],
+  mpdMode: "drums",
 };
 
 const KEY = "cdjpi-loop-settings";

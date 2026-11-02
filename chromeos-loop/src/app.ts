@@ -60,6 +60,9 @@ export class App {
   midi: MidiHooks | null = null;
   ui: { browse?(d: number): void } | null = null;
   heldChords = new Map<number, number[]>();
+  /** volúmenes (0..1; 0.75 = ganancia unidad) que la UI muestra y los controles físicos cambian */
+  mix = { synth: 0.75, drums: 0.8, instr: 0.75, loops: 0.75, master: 0.75 };
+  private mixWarned = new Set<string>();
   private listeners: Listener[] = [];
   private emitQueued = false;
   private recorder: MediaRecorder | null = null;
@@ -312,6 +315,32 @@ export class App {
     if (!n) return;
     for (const m of n) this.synth.noteOff(m);
     this.heldChords.delete(id);
+    this.emit();
+  }
+
+  // ------------------------------------------------------------- volúmenes
+  setMix(key: keyof App["mix"], v: number, source = ""): void {
+    v = Math.max(0, Math.min(1, v));
+    this.mix[key] = v;
+    const t = this.ctx.currentTime;
+    const gain = v / 0.75;
+    switch (key) {
+      case "synth": this.synth.out.gain.setTargetAtTime(gain, t, 0.02); this.synth.fxOut.gain.setTargetAtTime(gain, t, 0.02); break;
+      case "drums": this.drums.setVolume(v); break;
+      case "instr": this.instrOut.gain.setTargetAtTime(gain, t, 0.02); break;
+      case "loops": this.loopBus.gain.setTargetAtTime(gain, t, 0.02); break;
+      case "master": this.masterGain.gain.setTargetAtTime(gain, t, 0.02); break;
+    }
+    // aviso si un control físico deja algo en silencio
+    const names = { synth: "Volumen del SINTE", drums: "Volumen de la BATERÍA", instr: "Volumen de INSTRUMENTOS", loops: "Volumen de los LOOPS", master: "Volumen MASTER" };
+    if (v < 0.03 && source && !this.mixWarned.has(key)) { this.mixWarned.add(key); this.toast(`${names[key]} a cero (${source})`, "error"); }
+    if (v > 0.1) this.mixWarned.delete(key);
+    this.emit();
+  }
+
+  toggleMpdMode(): void {
+    setSetting("mpdMode", settings.mpdMode === "drums" ? "piano" : "drums");
+    this.toast(settings.mpdMode === "piano" ? "MPD218 en modo PIANO: los 16 pads tocan el sinte (banco A medio, B agudo, C grave)" : "MPD218 en modo BATERÍA: A batería · B notas · C pistas y acordes");
     this.emit();
   }
 

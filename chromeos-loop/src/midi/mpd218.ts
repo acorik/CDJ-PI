@@ -1,5 +1,6 @@
 import type { App } from "../app";
 import { PRESETS } from "../synth/presets";
+import { settings } from "../settings";
 
 /** Mapeo por defecto (Program 1): pads 36..83 en bancos A/B/C; knobs por CC. */
 const DEFAULT_CC = [3, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27];
@@ -61,10 +62,10 @@ export class Mpd218 {
     const a = data[1], b = data[2] ?? 0;
     if (type === 0x90 && b > 0) {
       if (this.wizard >= 0) { this.wizardInput("note", a); return; }
-      const g = this.map.notes[a];
+      const g = this.padFor(a);
       if (g !== undefined) this.pad(g, b, true);
     } else if (type === 0x80 || (type === 0x90 && b === 0)) {
-      const g = this.map.notes[a];
+      const g = this.padFor(a);
       if (g !== undefined && this.wizard < 0) this.pad(g, 0, false);
     } else if (type === 0xb0) {
       if (this.wizard >= 0) { this.wizardInput("cc", a); return; }
@@ -73,9 +74,25 @@ export class Mpd218 {
     }
   }
 
+  /** Pad (0..47) de una nota. En modo piano, cualquier nota cuenta aunque no esté en el mapa. */
+  private padFor(note: number): number | undefined {
+    const g = this.map.notes[note];
+    if (g !== undefined) return g;
+    if (settings.mpdMode === "piano") return (((note - 36) % 48) + 48) % 48;
+    return undefined;
+  }
+
   pad(g: number, vel: number, down: boolean): void {
     const app = this.app;
     const bank = Math.floor(g / 16), i = g % 16;
+    if (settings.mpdMode === "piano") {
+      // los 16 pads son teclas en la escala: banco A octava normal, B una arriba, C una abajo
+      const shift = bank === 1 ? 12 : bank === 2 ? -12 : 0;
+      if (down) { const n = app.padNote(i) + shift; this.padNotes.set(g, n); app.synth.noteOn(n, vel); }
+      else { const n = this.padNotes.get(g); if (n !== undefined) app.synth.noteOff(n); this.padNotes.delete(g); }
+      app.emit();
+      return;
+    }
     if (bank === 0) { if (down) app.drums.trigger(i, vel); return; }
     if (bank === 1) {
       if (down) { const n = app.padNote(i); this.padNotes.set(g, n); app.synth.noteOn(n, vel); }
@@ -89,7 +106,7 @@ export class Mpd218 {
   }
 
   knob(k: number, v: number): void {
-    const app = this.app, s = app.synth, d = app.drums, t = app.ctx.currentTime;
+    const app = this.app, s = app.synth, d = app.drums;
     switch (k) {
       case 0: s.macro.cutoff = Math.pow(2, (v - 0.5) * 6); break;
       case 1: s.macro.res = (v - 0.5) * 16; break;
@@ -97,15 +114,15 @@ export class Mpd218 {
       case 3: s.macro.release = Math.pow(2, (v - 0.5) * 6); break;
       case 4: s.macro.lfo = v * 2; break;
       case 5: app.fx[0].setLevel(v); break;
-      case 6: d.setVolume(v); break;
+      case 6: app.setMix("drums", v, "knob B1 del MPD218"); break;
       case 7: d.setFilter(v); break;
       case 8: d.setDrive(v); break;
       case 9: d.params.kickDecay = v; break;
       case 10: d.params.kickTune = v; break;
       case 11: d.params.hatDecay = v; break;
       case 12: app.perf.setMasterFilter(v); break;
-      case 13: app.loopBus.gain.setTargetAtTime(v * 1.2, t, 0.02); break;
-      case 14: app.instrOut.gain.setTargetAtTime(v * 1.2, t, 0.02); break;
+      case 13: app.setMix("loops", v, "knob C2 del MPD218"); break;
+      case 14: app.setMix("instr", v, "knob C3 del MPD218"); break;
       case 15: app.fx[1].setLevel(v); break;
       case 16: app.setMetroVol(v); break;
       case 17: { const p = PRESETS[Math.min(PRESETS.length - 1, Math.floor(v * PRESETS.length))]; if (p !== app.preset) app.setPreset(p); break; }

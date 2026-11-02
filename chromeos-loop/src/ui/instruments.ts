@@ -23,6 +23,7 @@ export class DrumsPanel {
   private pads: HTMLButtonElement[] = [];
   private kitSel: HTMLSelectElement;
   private knobs: Knob[] = [];
+  private volKnob!: Knob;
 
   constructor(private app: App) {
     this.kitSel = h("select", { class: "sel", title: "Kit de batería" });
@@ -58,7 +59,7 @@ export class DrumsPanel {
       h("div", { class: "phead" }, h("b", {}, "BATERÍA"), this.kitSel),
       grid,
       h("div", { class: "knobrow" },
-        mk("VOL", d.volume, (v) => d.setVolume(v)),
+        (this.volKnob = new Knob("VOL", (v) => app.setMix("drums", v), 0.8, false)).el,
         mk("FILTRO", 0.5, (v) => d.setFilter(v), true),
         mk("DRIVE", 0, (v) => d.setDrive(v)),
         mk("KICK DEC", d.params.kickDecay, (v) => { d.params.kickDecay = v; }),
@@ -69,6 +70,7 @@ export class DrumsPanel {
   }
 
   update(): void {
+    this.volKnob.set(this.app.mix.drums);
     if (this.kitSel.value !== String(this.app.drums.kitIdx)) this.kitSel.value = String(this.app.drums.kitIdx);
   }
 
@@ -98,6 +100,7 @@ export class SynthPanel {
   private filter = "";
   private search: HTMLInputElement;
   private lastPreset = "";
+  private volKnob!: Knob;
 
   constructor(private app: App) {
     const cats = h("div", { class: "cats" });
@@ -117,7 +120,9 @@ export class SynthPanel {
     const s = app.synth;
     const mk = (label: string, def: number, fn: (v: number) => void, bip = false) => { const kn = new Knob(label, (v) => { fn(v); kn.set(v); }, def, bip); kn.set(def); this.knobs.push(kn); return kn.el; };
     // macros: multiplican/suman sobre el preset (0.5 = como viene)
+    this.volKnob = new Knob("VOL", (v) => app.setMix("synth", v), 0.75, false);
     const macros = h("div", { class: "knobrow" },
+      this.volKnob.el,
       mk("CUTOFF", 0.5, (v) => { s.macro.cutoff = Math.pow(2, (v - 0.5) * 6); }, true),
       mk("RESO", 0.5, (v) => { s.macro.res = (v - 0.5) * 16; }, true),
       mk("ATTACK", 0.5, (v) => { s.macro.attack = Math.pow(2, (v - 0.5) * 8); }, true),
@@ -172,6 +177,7 @@ export class SynthPanel {
   }
 
   update(): void {
+    this.volKnob.set(this.app.mix.synth);
     const p = this.app.preset;
     setText(this.name, p.name);
     setText(this.info, `${p.cat}${p.arp ? ` · ARP ${p.arp}` : ""}${p.mono ? " · mono" : ""}`);
@@ -261,6 +267,7 @@ export class PerfPanel {
   private micRec: HTMLButtonElement;
   private micMon: HTMLButtonElement;
   private micVu: HTMLElement;
+  private mixKnobs: [keyof App["mix"], Knob][] = [];
 
   constructor(private app: App) {
     const grid = h("div", { class: "pads4 perf" });
@@ -284,10 +291,16 @@ export class PerfPanel {
     this.el = h("section", { class: "panel perfp" },
       h("div", { class: "phead" }, h("b", {}, "FX DE DIRECTO"), h("small", { class: "dim" }, "mantén pulsado")),
       grid,
-      h("div", { class: "mic" }, this.micBtn, this.micRec, this.micMon, this.micVu));
+      h("div", { class: "mic" }, this.micBtn, this.micRec, this.micMon, this.micVu),
+      h("div", { class: "knobrow mixrow" }, ...(["master", "instr", "loops"] as const).map((k) => {
+        const kn = new Knob(k === "master" ? "MASTER" : k === "instr" ? "INSTRUM." : "LOOPS", (v) => app.setMix(k, v), 0.75, false);
+        this.mixKnobs.push([k, kn]);
+        return kn.el;
+      })));
   }
 
   update(): void {
+    for (const [k, kn] of this.mixKnobs) kn.set(this.app.mix[k]);
     cls(this.micBtn, "on", !!this.app.micStream);
     cls(this.micRec, "on", settings.micRec);
     cls(this.micMon, "on", settings.micMonitor);

@@ -55,6 +55,7 @@ export class UI {
     T.root = rootSel; T.scale = scaleSel;
     T.rec = b("● GRABAR DIRECTO", "Graba todo lo que suena a un archivo (.webm)", () => app.toggleSessionRecording(), "recbtn");
     T.midi = h("span", { class: "midistat" });
+    T.mpd = b("MPD: BATERÍA", "Modo de los pads del MPD218 (también con el botón DECK de la Numark o la tecla M)", () => app.toggleMpdMode());
     const help = h("dialog", { class: "dlg" }, h("div", { class: "dlghead" }, h("h2", {}, "Cómo se usa"), b("Cerrar", "", () => help.close())), h("div", { class: "dlgbody help", html: HELP_HTML }));
     this.sessionsDlg = h("dialog", { class: "dlg" });
 
@@ -64,7 +65,7 @@ export class UI {
       bars, T.after, T.count, T.metro,
       rootSel, scaleSel,
       h("span", { class: "grow" }),
-      T.midi,
+      T.midi, T.mpd,
       b("💾", "Sesiones: guardar / cargar", () => void this.openSessions()),
       b("⤓ WAV", "Exportar cada loop y la mezcla en WAV", () => void app.exportLoops()),
       T.rec,
@@ -131,6 +132,7 @@ export class UI {
       if (pi >= 0 && !e.shiftKey) { app.synth.noteOn(this.synth.baseMidi() + pi, 100); e.preventDefault(); return; }
       switch (e.code) {
         case "Space": app.togglePlay(); break;
+        case "KeyM": app.toggleMpdMode(); break;
         case "Enter": app.looper.playAll(); break;
         case "KeyZ": this.synth.octave(-1); break;
         case "KeyX": this.synth.octave(1); break;
@@ -167,6 +169,8 @@ export class UI {
     cls(T.rec, "on", app.recording);
     setText(T.midi, this.midi.statusLine());
     cls(T.midi, "ok", this.midi.anyConnected());
+    setText(T.mpd, settings.mpdMode === "piano" ? "MPD: 🎹 PIANO" : "MPD: 🥁 BATERÍA");
+    cls(T.mpd, "on", settings.mpdMode === "piano");
     this.tracks.update();
     this.drums.update();
     this.synth.update();

@@ -33,6 +33,14 @@ export class PlatinumLoop {
   private pitchLsb = [0, 0, 0, 0];
   private padNotes = new Map<string, number>();
   private lastStopPress = new Map<number, number>();
+  /**
+   * Controles absolutos ya vistos. Al conectarse, la controladora envía la
+   * posición de todas sus perillas/faders: esa primera lectura se ignora para
+   * que una perilla olvidada abajo no deje el sinte o la batería en silencio.
+   * Solo cuenta cuando se mueve de verdad.
+   */
+  private seen = new Set<string>();
+  private lastDeckBtn = 0;
 
   constructor(private app: App, private send: (d: number[]) => void, private sysex: boolean) {}
 
@@ -86,6 +94,10 @@ export class PlatinumLoop {
         case 0x0b: case 0x2b: if (press) { setSetting("octave", Math.min(7, settings.octave + 1)); app.emit(); } return;
         case 0x0c: case 0x2c: if (press) { setSetting("octave", Math.max(1, settings.octave - 1)); app.emit(); } return;
         case 0x1b: if (press) { const u = app.fx[side]; u.setOn(!u.on); app.emit(); } return;
+        case 0x08:
+          // botón DECK (1/3 ó 2/4): cambia el MPD218 entre modo BATERÍA y PIANO
+          if (v === 0x7f && performance.now() - this.lastDeckBtn > 300) { this.lastDeckBtn = performance.now(); app.toggleMpdMode(); }
+          return;
       }
       return;
     }
@@ -159,7 +171,12 @@ export class PlatinumLoop {
   }
 
   private onCC(ch: number, n: number, v: number): void {
-    const app = this.app, x = v / 127, t = app.ctx.currentTime;
+    const app = this.app, x = v / 127;
+    const absolute = (ch <= 3 && n !== 0x06) || (ch === 8 && n === 0x04) || ch === 14 || (ch === 15 && n === 0x08) || (ch === 15 && n >= 0x0c);
+    if (absolute) {
+      const key = `${ch % 2}:${n}:${ch === 15 || ch === 14 ? ch : ""}`;
+      if (!this.seen.has(key)) { this.seen.add(key); return; }
+    }
     if (ch <= 3) {
       const side = ch % 2;
       const rel = v >= 64 ? v - 128 : v;
@@ -179,22 +196,22 @@ export class PlatinumLoop {
       const s = app.synth, d = app.drums;
       if (side === 0) {
         switch (n) {
-          case 0x16: s.out.gain.setTargetAtTime(x * 1.4, t, 0.02); break;
+          case 0x16: app.setMix("synth", x, "perilla TRIM del canal 1"); break;
           case 0x17: s.macro.cutoff = Math.pow(2, (x - 0.5) * 6); break;
           case 0x18: s.macro.res = (x - 0.5) * 16; break;
           case 0x19: s.macro.release = Math.pow(2, (x - 0.5) * 6); break;
           case 0x1a: s.macro.lfo = x * 2; break;
-          case 0x1c: app.instrOut.gain.setTargetAtTime(x * 1.2, t, 0.02); break;
+          case 0x1c: app.setMix("instr", x, "fader del canal 1"); break;
           case 0x08: app.perf.setMasterFilter(x); break;
         }
       } else {
         switch (n) {
-          case 0x16: d.setVolume(x); break;
+          case 0x16: app.setMix("drums", x, "perilla TRIM del canal 2"); break;
           case 0x17: d.params.hatDecay = x; break;
           case 0x18: d.params.snareTone = x; break;
           case 0x19: d.params.kickDecay = x; break;
           case 0x1a: d.setFilter(x); break;
-          case 0x1c: app.loopBus.gain.setTargetAtTime(x * 1.2, t, 0.02); break;
+          case 0x1c: app.setMix("loops", x, "fader del canal 2"); break;
           case 0x08: app.perf.setMasterFilter(x); break;
         }
       }
@@ -208,7 +225,7 @@ export class PlatinumLoop {
       app.emit();
       return;
     }
-    if (ch === 14 && n === 0x23) { app.masterGain.gain.setTargetAtTime(x * 1.4, t, 0.02); return; }
+    if (ch === 14 && n === 0x23) { app.setMix("master", x, "perilla MASTER"); return; }
     if (ch === 15) {
       const rel = v >= 64 ? v - 128 : v;
       if (n === 0x00) app.stepPreset(Math.sign(rel));

@@ -118,11 +118,12 @@ export const HELP_HTML = `
 <h3>Teclado del ordenador</h3>
 <table>
 <tr><td>A W S E D F T G Y H U J K O L P</td><td>Piano (como en un DAW) · Z / X = octava</td></tr>
-<tr><td>1-8</td><td>Botón de cada pista · Mayús+1-8 = parar</td></tr>
+<tr><td>1-8</td><td>Botón de cada pista · Mayús+1-8 = parar · M = modo del MPD218</td></tr>
 <tr><td>Espacio · Enter · Retroceso</td><td>Play/Stop · arrancar todas · deshacer en la pista seleccionada</td></tr>
 <tr><td>↑ ↓ · ← →</td><td>Preset anterior/siguiente · categoría</td></tr>
 </table>
 <h3>Akai MPD218</h3>
+<p>Dos modos (botón <b>DECK</b> de la Numark, botón «MPD» de arriba o tecla <b>M</b>): <b>BATERÍA</b> (tabla de abajo) o <b>PIANO</b>: los 16 pads tocan el sinte en la escala elegida (banco A octava normal, B una más aguda, C una más grave; elige la escala «Cromática» si quieres todas las notas).</p>
 <table>
 <tr><td>Banco A</td><td>Batería (16 pads, con velocidad)</td></tr>
 <tr><td>Banco B</td><td>Notas del sinte en la escala elegida</td></tr>
@@ -136,6 +137,7 @@ export const HELP_HTML = `
 <table>
 <tr><td>Pads izquierda (HOT CUE)</td><td>Pistas 1-8 · SHIFT+pad = parar · en otros modos: FX de directo</td></tr>
 <tr><td>Pads derecha</td><td>HOT CUE: batería 1-8 · AUTO LOOP: batería 9-16 · FADER CUTS: notas · SAMPLE: acordes</td></tr>
+<tr><td>DECK (1/3 ó 2/4)</td><td>MPD218 en modo BATERÍA ↔ PIANO</td></tr>
 <tr><td>PLAY · CUE · SYNC</td><td>Play/stop (SHIFT: parar pistas) · metrónomo · tap tempo (SHIFT+SYNC: cuenta atrás)</td></tr>
 <tr><td>SCRATCH</td><td>Izq.: tras grabar → PLAY/DUB · der.: grabar micro on/off</td></tr>
 <tr><td>CUE auriculares</td><td>FX1 / FX2 on-off</td></tr>
