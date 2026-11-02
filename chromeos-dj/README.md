@@ -1,4 +1,4 @@
-# CDJ-PI DJ (ChromeOS + Numark Mixtrack Platinum FX)
+# CDJ-PI DJ (ChromeOS + Numark Mixtrack Platinum FX + Akai MPD218)
 
 App de DJ que corre **dentro de Chrome** en un Chromebook de 4 GB, pensada para conectar una **Numark Mixtrack Platinum FX** por USB y pinchar como con Serato DJ, con funciones de CDJ añadidas. Sin instalar Linux, sin servidor, ~150 KB de código.
 
@@ -8,6 +8,7 @@ App de DJ que corre **dentro de Chrome** en un Chromebook de 4 GB, pensada para 
 - **Análisis**: BPM + beatgrid + downbeat, tonalidad (Camelot / Open Key / clásica), loudness para **auto gain**, waveform RGB de 3 bandas. Se hace en un Web Worker y se guarda: cada pista se analiza una sola vez.
 - **Biblioteca**: carpetas de USB / SD / Google Drive (File System Access), etiquetas ID3/FLAC/MP4, búsqueda, crates, "★ Preparar", historial de sesión exportable como setlist, filtro **COMPATIBLES** (tonalidad ±1 y BPM ±6 % del master), puntuación y colores, backup/importación de cues y crates en JSON.
 - **Mezclador**: trim, EQ isolator de 3 bandas con kill real, filtro LPF/HPF, PFL, crossfader con curvas, limitador, VUs, grabación de la sesión a `.webm`.
+- **LIVE con Akai MPD218**: batería 808/909 sintetizada, 16 FX de directo sobre el master, bajo 808 en la tonalidad del tema y secuenciador enganchado al compás del master (ver abajo).
 - **FX**: 2 unidades beat-sync (Echo, Ping Pong, Reverb, Flanger, Phaser, Filter LFO, Trans, Crush, Noise, Roll) con TAP, + sampler de 8 slots con sonidos sintetizados (sustituibles por tus archivos).
 
 ## Funciones de CDJ incluidas
@@ -103,6 +104,31 @@ Los números de nota/CC y el formato sysex de las pantallas salen del mapeo de l
 
 Sin controladora también se puede pinchar con ratón/teclado (pulsa **?** en la app para ver los atajos).
 
+## LIVE / remix con el Akai MPD218
+
+Conecta el MPD218 a la vez que la Platinum FX (se detectan por separado) y pulsa **🥁 LIVE** en la barra superior. Todo lo de esta sección suena por el master y se graba con REC.
+
+| Banco del MPD218 | Qué hace |
+| --- | --- |
+| **A · Batería** | Caja de ritmos sintetizada estilo **808** o **909** (16 voces, sensibles a la velocidad, el hi-hat abierto se corta con el cerrado). Arrastra un audio sobre un pad de la pantalla para sustituir esa voz por tu propio sample (se guarda en el Chromebook). |
+| **B · FX de directo** | 16 efectos sobre **todo el master**, al tempo del deck MASTER: echo throw ½/¾ (las colas siguen al soltar), reverb throw, beat repeat ¼/⅛/1/16 (congela el trozo y lo repite), barrido HPF↑ / LPF↓, gate ⅛, crush, flanger, tape stop (frena todos los decks y vuelven al soltar), **BASS KILL** (para el drop: suelta y entra el bajo), riser de ruido de 2 compases, impact y air horn. Con aftertouch, la presión controla la intensidad. |
+| **C · Bajo 808** | 16 notas del **bajo 808 en la escala de la tonalidad del tema que suena** (sigue al master: si cambias de tema, cambia de escala). Monofónico con glide. |
+
+**Secuenciador** (enganchado al beatgrid del master, empieza "en el 1" del compás del tema):
+PLAY · **REC** (overdub cuantizado a semicorchea, descuenta la latencia de salida) · ↶ deshacer · CLEAR · 1/2/4 compases · swing · 8 patrones (P1-P8, se guardan solos) · **ERASE** + pad = borrar esa pista · clic en la rejilla para poner/quitar pasos · clic en el nombre = mute. Las notas del bajo grabadas se transponen solas si cambia la tonalidad del master. Si haces loop o saltas con un hot cue en el deck master, el patrón le sigue; si el master se para, sigue con reloj libre (ajustable con − +).
+
+**Note Repeat del MPD218 al tempo de la mezcla:** la app le envía MIDI clock. En el MPD218 pulsa *NR CONFIG* + *pad 15 (Ext Clock)* una vez; a partir de ahí, mantener *NOTE REPEAT* hace redobles cuadrados con el tema (división con *NR CONFIG* + pads 1-8, swing con 9-14).
+
+**Knobs (6 × 3 bancos de CTRL BANK):**
+
+| | K1 | K2 | K3 | K4 | K5 | K6 |
+| --- | --- | --- | --- | --- | --- | --- |
+| A | Filtro master (LPF/HPF) | Echo send | Reverb send | Volumen batería | Filtro batería | Drive batería |
+| B | Kick decay | Kick tune | Tono snare | Hat decay | Swing | Kit 808/909 |
+| C | Decay 808 | Glide 808 | Filtro deck izq. | Filtro deck der. | Nivel FX1 | Nivel FX2 |
+
+**Mapeo:** por defecto Program 1 del MPD218 (pads = notas 36-83 en los bancos A/B/C; knobs = CC 3, 9, 12, 13, 14, 15 y CC 16-27 para los bancos B y C). Los CC del banco A están documentados; las notas y los CC de los bancos B/C son los habituales pero no los he podido confirmar en una fuente oficial, así que **clic derecho sobre cualquier pad o knob de la pantalla → tócalo en el MPD218** y queda aprendido (se guarda). *Mapeo por defecto* lo restablece.
+
 ## RAM y rendimiento (4 GB)
 
 - El audio de cada pista cargada vive como Int16 dentro del AudioWorklet: **~63 MB por cada 6 min** (48 kHz estéreo). 2 decks ≈ 130 MB, 4 decks ≈ 260 MB. Los *instant doubles* comparten memoria.
@@ -129,7 +155,8 @@ src/
   analysis/                    BPM/grid, tonalidad, waveform, loudness (puro, testeado en Node)
   audio/                       AudioContext, mezclador, FX, sampler, decodificación
   deck.ts · app.ts             lógica de deck estilo CDJ, master/sync, análisis por lotes
-  midi/                        Web MIDI, mapeo Platinum FX, fader cuts
+  midi/                        Web MIDI, mapeo Platinum FX y MPD218, fader cuts
+  live/                        batería 808/909, FX de directo, bajo 808, secuenciador, reloj y MIDI clock
   library/                     IndexedDB, carpetas, etiquetas, crates, historial
   ui/                          interfaz sin framework (canvas para waveforms y platos)
 test/                          tests (npm test)

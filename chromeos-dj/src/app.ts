@@ -5,6 +5,7 @@ import { Deck } from "./deck";
 import { Library } from "./library/library";
 import { settings } from "./settings";
 import type { Track } from "./types";
+import { LiveRig } from "./live/live";
 
 type Listener = () => void;
 
@@ -34,6 +35,7 @@ export class App {
   shift = false;
   ui: UiHooks | null = null;
   midi: MidiHooks | null = null;
+  live!: LiveRig;
   toasts: Toast[] = [];
   batch: { queue: string[]; done: number; total: number; current: string } | null = null;
   private listeners: Listener[] = [];
@@ -62,6 +64,7 @@ export class App {
       };
     }
     for (const d of this.decks) this.engine.post({ t: "ramp", d: d.i, start: settings.startTime, brake: settings.brakeTime });
+    this.live = new LiveRig(this);
     await this.library.init();
     this.library.onChange(() => this.emit());
     setInterval(() => this.tick(), 100);

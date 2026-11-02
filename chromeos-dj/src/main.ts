@@ -37,6 +37,7 @@ async function start(): Promise<void> {
     app.engine.ctx.addEventListener("statechange", () => app.emit());
     window.addEventListener("beforeunload", (e) => {
       midi.disconnect();
+      midi.disconnectPads();
       if (app.decks.some((d) => d.playing)) { e.preventDefault(); e.returnValue = ""; }
     });
     (window as any).__dj = { app, midi, ui };

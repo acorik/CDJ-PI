@@ -121,6 +121,7 @@ export class AudioEngine {
   readonly channels: Channel[] = [];
   readonly masterSum: GainNode;
   readonly masterGain: GainNode;
+  readonly masterInsert: GainNode;
   readonly limiter: DynamicsCompressorNode;
   readonly masterOut: GainNode;
   readonly cueBus: GainNode;
@@ -150,7 +151,10 @@ export class AudioEngine {
     this.limiter = ctx.createDynamicsCompressor();
     this.limiter.threshold.value = -1; this.limiter.knee.value = 0; this.limiter.ratio.value = 20;
     this.limiter.attack.value = 0.002; this.limiter.release.value = 0.12;
-    this.masterSum.connect(this.masterGain);
+    // punto de inserción para los FX de directo sobre el master (LIVE)
+    this.masterInsert = g();
+    this.masterSum.connect(this.masterInsert);
+    this.masterInsert.connect(this.masterGain);
     this.setLimiter(settings.limiter);
     this.cueBus = g(); this.cueSide = g(); this.mstSide = g(); this.cueOut = g();
     this.cueBus.connect(this.cueSide); this.cueSide.connect(this.cueOut);
@@ -311,6 +315,13 @@ export class AudioEngine {
     if (c.setSinkId) await c.setSinkId(id || "");
     this.maxChannels = this.ctx.destination.maxChannelCount;
     this.applyOutput();
+  }
+
+  /** Inserta una cadena (in -> out) entre la suma del master y su ganancia. */
+  setMasterInsert(input: AudioNode, output: AudioNode): void {
+    try { this.masterInsert.disconnect(); } catch { /* */ }
+    this.masterInsert.connect(input);
+    output.connect(this.masterGain);
   }
 
   // ------------------------------------------------------------- FX routing

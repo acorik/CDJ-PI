@@ -39,6 +39,8 @@ export interface Settings {
   fourDecks: boolean;
   padOnValue: number;
   padOffValue: number;
+  mpdClock: boolean;
+  view: "library" | "live";
 }
 
 export const DEFAULTS: Settings = {
@@ -76,6 +78,8 @@ export const DEFAULTS: Settings = {
   fourDecks: false,
   padOnValue: 0x7f,
   padOffValue: 0x01,
+  mpdClock: true,
+  view: "library",
 };
 
 const KEY = "cdjpi-dj-settings";

@@ -1,8 +1,11 @@
 import type { App } from "../app";
 import { PlatinumFX } from "./platinumfx";
 import { settings } from "../settings";
+import { handleMpd218 } from "./mpd218";
+import { MidiClockOut } from "../live/sequencer";
 
 const MATCH = /platinum\s*fx|mixtrack/i;
+const MPD = /mpd\s*2\d\d|mpd/i;
 
 export class MidiManager {
   access: MIDIAccess | null = null;
@@ -15,6 +18,12 @@ export class MidiManager {
   monitorOn = false;
   /** id de entrada forzado por el usuario (si el nombre no coincide) */
   forcedInput = "";
+  /** pads MPD218 (o cualquier controlador de pads elegido) */
+  padIn: MIDIInput | null = null;
+  padOut: MIDIOutput | null = null;
+  forcedPads = "";
+  padStatus = "MPD218 no conectado";
+  private clockOut: MidiClockOut | null = null;
 
   constructor(private app: App) {}
 
@@ -43,7 +52,8 @@ export class MidiManager {
 
   connect(): void {
     if (!this.access) return;
-    const ins = this.inputs().filter((i) => i.state === "connected");
+    this.connectPads();
+    const ins = this.inputs().filter((i) => i.state === "connected" && i.id !== this.padIn?.id);
     const input = ins.find((i) => i.id === this.forcedInput) ?? ins.find((i) => MATCH.test(i.name ?? ""));
     if (input && this.input?.id === input.id && this.ctrl) return;
     this.disconnect();
@@ -66,7 +76,7 @@ export class MidiManager {
       const data = e.data;
       if (!data) return;
       if (this.monitorOn) {
-        this.monitor.unshift([...data].map((b) => b.toString(16).padStart(2, "0")).join(" "));
+        this.monitor.unshift(`PFX  ${[...data].map((b) => b.toString(16).padStart(2, "0")).join(" ")}`);
         if (this.monitor.length > 40) this.monitor.length = 40;
       }
       this.ctrl?.onMessage(data);
@@ -75,6 +85,45 @@ export class MidiManager {
     this.status = `${input.name}${output ? "" : " (sin salida: LEDs/pantallas apagados)"}${this.sysex ? "" : " · sin sysex"}`;
     this.app.toast(`Controladora conectada: ${input.name}`);
     this.app.emit();
+  }
+
+  /** Conecta el MPD218 (independiente de la Platinum FX). */
+  connectPads(): void {
+    if (!this.access) return;
+    const ins = this.inputs().filter((i) => i.state === "connected");
+    const input = ins.find((i) => i.id === this.forcedPads) ?? ins.find((i) => MPD.test(i.name ?? "") && !MATCH.test(i.name ?? ""));
+    if (input && this.padIn?.id === input.id) return;
+    this.disconnectPads();
+    if (!input) { this.padStatus = "MPD218 no conectado"; return; }
+    const outs = [...this.access.outputs.values()].filter((o) => o.state === "connected");
+    this.padIn = input;
+    this.padOut = outs.find((o) => o.name === input.name) ?? null;
+    input.onmidimessage = (e: MIDIMessageEvent) => {
+      const data = e.data;
+      if (!data || !this.app.live) return;
+      if (data[0] >= 0xf8) return; // reloj/realtime
+      if (this.monitorOn) {
+        this.monitor.unshift(`MPD  ${[...data].map((b) => b.toString(16).padStart(2, "0")).join(" ")}`);
+        if (this.monitor.length > 40) this.monitor.length = 40;
+      }
+      handleMpd218(this.app.live, data);
+    };
+    if (this.padOut && this.app.live && settings.mpdClock) {
+      const out = this.padOut;
+      this.clockOut = new MidiClockOut(this.app.live.clock, this.app.engine.ctx, (d, ts) => { try { out.send(d, ts); } catch { /* */ } });
+      this.clockOut.start();
+    }
+    this.padStatus = `${input.name}${this.clockOut ? " · clock →" : ""}`;
+    this.app.toast(`Pads conectados: ${input.name}`);
+    this.app.emit();
+  }
+
+  disconnectPads(): void {
+    this.clockOut?.stop();
+    this.clockOut = null;
+    if (this.padIn) this.padIn.onmidimessage = null;
+    this.padIn = null;
+    this.padOut = null;
   }
 
   disconnect(): void {

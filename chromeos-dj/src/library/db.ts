@@ -1,7 +1,7 @@
 // IndexedDB mínimo con promesas. Stores:
 //  tracks (id) · waves (id -> Uint8Array) · roots (id -> handle) · crates · history · kv
 const DB_NAME = "cdjpi-dj";
-const VERSION = 1;
+const VERSION = 2;
 let dbp: Promise<IDBDatabase> | null = null;
 
 function open(): Promise<IDBDatabase> {
@@ -10,7 +10,7 @@ function open(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      for (const s of ["tracks", "waves", "roots", "crates", "history", "kv"]) {
+      for (const s of ["tracks", "waves", "roots", "crates", "history", "kv", "samples"]) {
         if (!db.objectStoreNames.contains(s)) db.createObjectStore(s);
       }
     };
@@ -24,7 +24,7 @@ function wrap<T>(r: IDBRequest<T>): Promise<T> {
   return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
 }
 
-export type StoreName = "tracks" | "waves" | "roots" | "crates" | "history" | "kv";
+export type StoreName = "tracks" | "waves" | "roots" | "crates" | "history" | "kv" | "samples";
 
 export async function dbGet<T>(store: StoreName, key: string): Promise<T | undefined> {
   const db = await open();

@@ -191,6 +191,15 @@ export const HELP_HTML = `
 <tr><td>FX</td><td>Botones 1-3 = efecto (configurable en ajustes) · palanca arriba = fijo, abajo = momentáneo · knob = beats · TAP = tempo FX (SHIFT+TAP = automático).</td></tr>
 <tr><td>DECK 3/4</td><td>Botón de deck: cambia la capa (los knobs/faders "recogen" el valor al pasar por él).</td></tr>
 </table>
+<h3>LIVE · Akai MPD218 (botón 🥁 LIVE)</h3>
+<table>
+<tr><td>Banco A</td><td>Batería 808/909 (arrastra un audio a un pad para usar tu sample).</td></tr>
+<tr><td>Banco B</td><td>FX de directo sobre todo el master: echo/reverb throw, beat repeat, HPF/LPF, gate, crush, flanger, tape stop, BASS KILL, riser, impact, air horn.</td></tr>
+<tr><td>Banco C</td><td>Bajo 808 en la escala de la tonalidad del master.</td></tr>
+<tr><td>Secuenciador</td><td>PLAY · REC (cuantizado) · ↶ · CLEAR · 1/2/4 compases · P1-P8 · ERASE+pad borra pista · clic en la rejilla edita.</td></tr>
+<tr><td>Note Repeat</td><td>En el MPD218: NR CONFIG + pad 15 (Ext Clock) → redobles al tempo de la mezcla.</td></tr>
+<tr><td>Aprender</td><td>Clic derecho en un pad o knob de la pantalla y tócalo en el MPD218.</td></tr>
+</table>
 <h3>Teclado (sin controladora)</h3>
 <table>
 <tr><td>Z / X / C / V</td><td>Deck izq.: CUE · PLAY · SYNC · loop 4</td></tr>

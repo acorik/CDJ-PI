@@ -6,6 +6,7 @@ import { DeckView } from "./deckview";
 import { MixerView } from "./mixerview";
 import { LibraryView } from "./libraryview";
 import { SettingsView, HELP_HTML } from "./settingsview";
+import { LiveView } from "./liveview";
 import { ScrollWave, DECK_COLORS } from "./waveform";
 import { AUDIO_EXT } from "../library/library";
 
@@ -15,6 +16,7 @@ export class UI {
   private decks: DeckView[];
   private mixer: MixerView;
   readonly library: LibraryView;
+  private live: LiveView;
   private settingsView: SettingsView;
   private waves: ScrollWave[] = [];
   private waveRows: HTMLElement[] = [];
@@ -27,6 +29,7 @@ export class UI {
     this.decks = [new DeckView(app, 0), new DeckView(app, 1)];
     this.mixer = new MixerView(app);
     this.library = new LibraryView(app);
+    this.live = new LiveView(app, midi);
     this.settingsView = new SettingsView(app, midi);
     this.zoomIdx = Math.max(0, ZOOMS.indexOf(settings.waveZoom === 1 ? 8 : settings.waveZoom));
 
@@ -37,13 +40,14 @@ export class UI {
     T.shift = h("span", { class: "shiftind" }, "SHIFT");
     const btn = (label: string, title: string, fn: () => void) => { const b = h("button", { class: "btn small", title, onclick: fn }); b.textContent = label; return b; };
     T.libBig = btn("▤", "Biblioteca grande (modo navegación)", () => { setSetting("libraryBig", !settings.libraryBig); });
+    T.view = btn("🥁 LIVE", "Alterna Biblioteca / LIVE (batería 808, FX de directo, bajo, secuenciador · MPD218)", () => setSetting("view", settings.view === "live" ? "library" : "live"));
     const help = h("dialog", { class: "dlg" }, h("div", { class: "dlghead" }, h("h2", {}, "Ayuda"), btn("Cerrar", "", () => help.close())), h("div", { class: "dlgbody help", html: HELP_HTML }));
     const topbar = h("header", { class: "topbar" },
       h("b", { class: "logo" }, "CDJ-PI ", h("span", {}, "DJ")),
       T.midi, T.audio, T.shift,
       h("span", { class: "grow" }),
       btn("−", "Zoom waveform −", () => this.zoom(1)), btn("+", "Zoom waveform +", () => this.zoom(-1)),
-      T.libBig,
+      T.view, T.libBig,
       btn("⛶", "Pantalla completa", () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); }),
       btn("?", "Ayuda", () => help.showModal()),
       btn("⚙", "Ajustes", () => this.settingsView.open()),
@@ -73,7 +77,8 @@ export class UI {
 
     this.toastEl = h("div", { class: "toasts" });
     const deckRow = h("div", { class: "deckrow" }, this.decks[0].el, this.mixer.el, this.decks[1].el);
-    const main = h("main", { class: "app" }, topbar, wavesEl, deckRow, this.library.el);
+    const bottom = h("div", { class: "bottom" }, this.library.el, this.live.el);
+    const main = h("main", { class: "app" }, topbar, wavesEl, deckRow, bottom);
     root.append(main, this.settingsView.el, help, this.toastEl);
     this.root = main;
 
@@ -195,6 +200,12 @@ export class UI {
   update(): void {
     cls(this.root, "libbig", settings.libraryBig);
     cls(this.top.libBig, "on", settings.libraryBig);
+    const liveOn = settings.view === "live";
+    cls(this.top.view, "on", liveOn);
+    setText(this.top.view, liveOn ? "▤ BIBLIOTECA" : "🥁 LIVE");
+    cls(this.library.el, "hidden", liveOn);
+    cls(this.live.el, "hidden", !liveOn);
+    if (liveOn) this.live.update();
     setText(this.top.midi, `🎛 ${this.midi.status}`);
     cls(this.top.midi, "ok", !!this.midi.ctrl && !!this.midi.input);
     const eng = this.app.engine;
@@ -239,6 +250,7 @@ export class UI {
     }
     for (const d of this.decks) { d.update(); d.draw(); }
     this.mixer.meters();
+    if (settings.view === "live") this.live.draw();
     const now = new Date();
     setText(this.top.clock, now.toTimeString().slice(0, 5));
     if (this.app.toasts.length && Date.now() - this.app.toasts[this.app.toasts.length - 1].at > 4000) { this.app.toasts = []; this.update(); }

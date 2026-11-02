@@ -8,7 +8,7 @@ export interface Slot {
   color: string;
 }
 
-type SynthFn = (c: OfflineAudioContext) => void;
+export type SynthFn = (c: OfflineAudioContext) => void;
 
 function env(c: OfflineAudioContext, g: GainNode, a: number, peak: number, d: number, t0 = 0) {
   g.gain.setValueAtTime(0, t0);
@@ -26,7 +26,7 @@ function noise(c: OfflineAudioContext, seconds: number): AudioBufferSourceNode {
   return s;
 }
 
-const SYNTHS: [string, number, SynthFn][] = [
+export const SYNTHS: [string, number, SynthFn][] = [
   ["Air horn", 1.6, (c) => {
     for (const t0 of [0, 0.32, 0.64]) {
       const g = c.createGain();

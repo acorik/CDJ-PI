@@ -27,7 +27,7 @@ export const FX_LIST: FxDef[] = [
   { id: "roll", name: "Roll", mode: "insert", beatsIdx: 1, paramName: "—", param: 0 },
 ];
 
-interface Effect {
+export interface Effect {
   input: AudioNode;
   output: AudioNode;
   setTime(sec: number): void;
@@ -70,7 +70,7 @@ class LFO {
   dispose() { try { this.osc?.stop(); } catch { /* */ } this.out.disconnect(); }
 }
 
-function build(ctx: AudioContext, id: string): Effect {
+export function buildEffect(ctx: AudioContext, id: string): Effect {
   const now = () => ctx.currentTime;
   switch (id) {
     case "echo": {
@@ -259,7 +259,7 @@ export class FxUnit {
       try { old.output.disconnect(this.wet); } catch { /* */ }
     }
     this.def = def;
-    this.effect = build(this.ctx, def.id);
+    this.effect = buildEffect(this.ctx, def.id);
     this.send.connect(this.effect.input);
     this.effect.output.connect(this.wet);
     if (def.beatsIdx !== null) this.beatsIdx = def.beatsIdx;
